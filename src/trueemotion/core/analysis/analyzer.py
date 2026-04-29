@@ -2,10 +2,15 @@
 情感分析器门面 v1.11
 ====================
 整合检测器、记忆系统、响应生成器
+
+v1.11 新增:
+- 反讽检测
+- 上下文理解
+- 主动共情
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 from trueemotion.core.emotions.plutchik24 import (
@@ -13,6 +18,8 @@ from trueemotion.core.emotions.plutchik24 import (
     get_intensity_label,
     get_vad_label,
 )
+from trueemotion.core.emotions.irony import IronyDetector, IronyResult
+from trueemotion.core.analysis.context import ContextualAnalyzer, ConversationContext
 from trueemotion.core.analysis.output import (
     EmotionOutput,
     HumanResponse,
@@ -41,6 +48,8 @@ class EmotionAnalyzer:
     - 人性化情感检测（连续强度、复合情感）
     - 更细腻的共情响应
     - 上下文感知
+    - 反讽检测
+    - 主动共情
     """
 
     def __init__(
@@ -52,6 +61,9 @@ class EmotionAnalyzer:
         self._detector = detector or HumanEmotionDetector()
         self._empathy = empathy_engine or HumanEmpathyEngine()
         self._memory = MemoryRepository(memory_path)
+        self._irony = IronyDetector()
+        self._context_analyzer = ContextualAnalyzer()
+        self._conversation_contexts: Dict[str, ConversationContext] = {}
 
     def analyze(self, text: str, options: Optional[AnalyzeOptions] = None) -> AnalysisResult:
         """
@@ -74,40 +86,73 @@ class EmotionAnalyzer:
         vad = EMOTION_VAD.get(primary_emotion, (0.0, 0.0, 0.0))
         intensity_label = get_intensity_label(primary_score)
 
-        # 3. 分离纯情感和复合情感
+        # 3. 反讽检测
+        irony_result = self._irony.detect(text, primary_emotion, primary_score)
+        effective_emotion = irony_result.true_emotion or primary_emotion
+        effective_intensity = primary_score
+
+        # 如果检测到反讽，使用真实情感
+        if irony_result.is_irony:
+            effective_emotion = irony_result.true_emotion
+
+        # 4. 上下文分析
+        context_result = self._context_analyzer.analyze_with_context(
+            text, effective_emotion, effective_intensity
+        )
+
+        # 5. 分离纯情感和复合情感
         pure_emotions = {k: v for k, v in emotion_scores.items()
                         if not self._is_compound_emotion(k)}
         compound_emotions = {k: v for k, v in emotion_scores.items()
                            if self._is_compound_emotion(k)}
 
-        # 4. 生成共情回复
+        # 6. 生成共情回复
         human_response = self._empathy.generate(
-            emotion=primary_emotion,
-            intensity=primary_score,
+            emotion=effective_emotion,
+            intensity=effective_intensity,
             context=opts.context,
         )
 
-        # 5. 构建情感混合描述
+        # 7. 如果需要追问，使用上下文分析结果
+        follow_up_suggestion = self._context_analyzer.get_follow_up_suggestion(
+            effective_emotion, effective_intensity, context_result
+        )
+        if follow_up_suggestion and not human_response.follow_up:
+            human_response.follow_up = follow_up_suggestion
+
+        # 8. 构建情感混合描述
         emotion_mix = self._build_emotion_mix(emotion_scores)
 
-        # 6. 更新用户记忆
+        # 9. 更新用户记忆
         user_profile = self._update_memory(
             user_id=opts.user_id,
-            emotion=primary_emotion,
+            emotion=effective_emotion,
             learn=opts.learn,
             response=opts.response,
             feedback=opts.feedback,
         )
 
-        # 7. 获取检测解释
+        # 10. 获取检测解释
         explanation = self._detector.explain(text) if primary_score > 0.1 else None
+
+        # 构建explanation加入反讽信息
+        if irony_result.is_irony:
+            if explanation is None:
+                explanation = {}
+            explanation["irony"] = {
+                "is_irony": True,
+                "surface_emotion": irony_result.surface_emotion,
+                "true_emotion": irony_result.true_emotion,
+                "confidence": irony_result.confidence,
+                "clues": irony_result.clues,
+            }
 
         return AnalysisResult(
             version="1.11",
             engine="humanized-v1.11",
             emotion=EmotionOutput(
-                primary=primary_emotion,
-                intensity=primary_score,
+                primary=effective_emotion,
+                intensity=effective_intensity,
                 vad=vad,
                 confidence=primary_score,
                 intensity_label=intensity_label,
