@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trueemotion-pro"
+version = "1.12"
+description = "TrueEmotion Pro v1.12 - 人性化情感AI系统"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "TrueEmotion Team", email = "team@trueemotion.dev"}
+]
+keywords = ["emotion", "ai", "nlp", "chinese", "empathy", "sentiment-analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.0.280",
+    "black>=23.0.0",
+]
+all = [
+    "trueemotion-pro[api,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-repo/trueemotion-pro"
+Documentation = "https://github.com/your-repo/trueemotion-pro#readme"
+Repository = "https://github.com/your-repo/trueemotion-pro"
+
+[project.scripts]
+trueemotion = "trueemotion.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+trueemotion = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.black]
+line-length = 120
+target-version = ["py39", "py310", "py311"]

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueEmotion Pro v1.12 - 情感AI演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        textarea {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .option label {
+            font-size: 14px;
+            color: #555;
+        }
+        input[type="text"] {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            width: 150px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .result.show {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .result-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .result-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .result-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .emotion-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .intensity-bar {
+            display: inline-block;
+            width: 200px;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            vertical-align: middle;
+        }
+        .intensity-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+        }
+        .response-text {
+            font-size: 18px;
+            color: #333;
+            line-height: 1.6;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .vad {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .vad-item {
+            text-align: center;
+        }
+        .vad-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        .vad-label {
+            font-size: 12px;
+            color: #888;
+        }
+        .emotions-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .emotion-tag {
+            padding: 5px 12px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            font-size: 13px;
+            color: #555;
+        }
+        .emotion-tag.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f0f0f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c00;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+        .examples {
+            margin-top: 15px;
+        }
+        .example-btn {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 15px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .example-btn:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TrueEmotion Pro v1.12</h1>
+            <p>人性化情感AI系统 - 让AI拥有像人类一样丰富的情感</p>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <textarea id="textInput" placeholder="输入你想分析的文字..."></textarea>
+            </div>
+
+            <div class="options">
+                <div class="option">
+                    <label>用户ID:</label>
+                    <input type="text" id="userId" value="demo_user">
+                </div>
+                <div class="option">
+                    <input type="checkbox" id="learnMode">
+                    <label for="learnMode">启用学习模式</label>
+                </div>
+            </div>
+
+            <div class="examples">
+                <strong>示例文本:</strong>
+                <button class="example-btn" onclick="setText('今天太开心了！终于完成了项目！')">开心</button>
+                <button class="example-btn" onclick="setText('我很难过，失恋了...')">难过</button>
+                <button class="example-btn" onclick="setText('真是气死我了，又被骗了！')">愤怒</button>
+                <button class="example-btn" onclick="setText('好害怕啊，担心明天的考试...')">害怕</button>
+                <button class="example-btn" onclick="setText('好期待！下个月就要去旅游了！')">期待</button>
+                <button class="example-btn" onclick="setText('看着他成功了，既高兴又有点嫉妒。')">矛盾情感</button>
+            </div>
+
+            <button id="analyzeBtn" onclick="analyze()">分析情感</button>
+        </div>
+
+        <div class="card">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>分析中...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="result" id="result">
+                <div class="result-section">
+                    <h3>情感分析结果</h3>
+                    <span class="emotion-badge" id="primaryEmotion"></span>
+                    <span id="intensityLabel"></span>
+                    <div class="intensity-bar" style="margin-top: 10px;">
+                        <div class="intensity-fill" id="intensityFill"></div>
+                    </div>
+                    <div class="vad" style="margin-top: 15px;">
+                        <div class="vad-item">
+                            <div class="vad-value" id="valence">0.00</div>
+                            <div class="vad-label">Valence (效价)</div>
+                        </div>
+                        <div class="vad-item">
+                            <div class="vad-value" id="arousal">0.00</div>
+                            <div class="vad-label">Arousal (唤醒度)</div>
+                        </div>
+                        <div class="vad-item">
+                            <div class="vad-value" id="dominance">0.00</div>
+                            <div class="vad-label">Dominance (掌控度)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h3>检测到的所有情感</h3>
+                    <div class="emotions-grid" id="allEmotions"></div>
+                </div>
+
+                <div class="result-section">
+                    <h3>复合情感</h3>
+                    <div class="emotions-grid" id="compoundEmotions"></div>
+                </div>
+
+                <div class="result-section">
+                    <h3>人性化回复</h3>
+                    <div class="response-text" id="responseText"></div>
+                    <p style="margin-top: 10px; color: #888; font-size: 14px;">
+                        共情类型: <span id="empathyType"></span> |
+                        语气: <span id="tone"></span> |
+                        深度: <span id="empathyDepth"></span>
+                    </p>
+                    <p id="followUp" style="margin-top: 10px; color: #667eea; font-style: italic;"></p>
+                </div>
+
+                <div class="result-section">
+                    <h3>用户画像</h3>
+                    <p>用户ID: <span id="profileUserId"></span></p>
+                    <p>总交互数: <span id="totalInteractions"></span></p>
+                    <p>主导情感: <span id="dominantEmotion"></span></p>
+                    <p>关系深度: <span id="relationshipLevel"></span></p>
+                    <p>情绪状态: <span id="emotionalState"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        function setText(text) {
+            document.getElementById('textInput').value = text;
+        }
+
+        async function analyze() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要分析的文本');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value || 'demo_user';
+            const learn = document.getElementById('learnMode').checked;
+
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.classList.remove('show');
+            error.classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        user_id: userId,
+                        learn: learn
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResult(data.data);
+                    result.classList.add('show');
+                } else {
+                    throw new Error(data.detail || '分析失败');
+                }
+            } catch (e) {
+                error.textContent = '错误: ' + e.message + '\n\n提示: 请确保 FastAPI 服务器正在运行 (uvicorn trueemotion.api.server:app)';
+                error.classList.add('show');
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        function displayResult(data) {
+            // Emotion
+            document.getElementById('primaryEmotion').textContent = data.emotion.primary;
+            document.getElementById('intensityLabel').textContent = data.emotion.intensity_label + ' (' + data.emotion.intensity.toFixed(2) + ')';
+            document.getElementById('intensityFill').style.width = (data.emotion.intensity * 100) + '%';
+            document.getElementById('valence').textContent = data.emotion.vad.valence.toFixed(2);
+            document.getElementById('arousal').textContent = data.emotion.vad.arousal.toFixed(2);
+            document.getElementById('dominance').textContent = data.emotion.vad.dominance.toFixed(2);
+
+            // All emotions
+            const allEmotionsDiv = document.getElementById('allEmotions');
+            allEmotionsDiv.innerHTML = '';
+            for (const [emotion, score] of Object.entries(data.emotion.all_emotions || {})) {
+                const tag = document.createElement('span');
+                tag.className = 'emotion-tag' + (emotion === data.emotion.primary ? ' primary' : '');
+                tag.textContent = `${emotion}: ${score.toFixed(2)}`;
+                allEmotionsDiv.appendChild(tag);
+            }
+
+            // Compound emotions
+            const compoundDiv = document.getElementById('compoundEmotions');
+            compoundDiv.innerHTML = '';
+            const compounds = data.emotion.compound_emotions || {};
+            if (Object.keys(compounds).length === 0) {
+                compoundDiv.innerHTML = '<span class="emotion-tag">无复合情感</span>';
+            } else {
+                for (const [emotion, score] of Object.entries(compounds)) {
+                    const tag = document.createElement('span');
+                    tag.className = 'emotion-tag';
+                    tag.textContent = `${emotion}: ${score.toFixed(2)}`;
+                    compoundDiv.appendChild(tag);
+                }
+            }
+
+            // Response
+            document.getElementById('responseText').textContent = data.human_response.text;
+            document.getElementById('empathyType').textContent = data.human_response.empathy_type;
+            document.getElementById('tone').textContent = data.human_response.tone;
+            document.getElementById('empathyDepth').textContent = data.human_response.empathy_depth;
+            document.getElementById('followUp').textContent = data.human_response.follow_up || '';
+
+            // Profile
+            document.getElementById('profileUserId').textContent = data.user_profile.user_id;
+            document.getElementById('totalInteractions').textContent = data.user_profile.total_interactions;
+            document.getElementById('dominantEmotion').textContent = data.user_profile.dominant_emotion || '未知';
+            document.getElementById('relationshipLevel').textContent = (data.user_profile.relationship_level * 100).toFixed(0) + '%';
+            document.getElementById('emotionalState').textContent = data.user_profile.emotional_state;
+        }
+    </script>
+</body>
+</html>

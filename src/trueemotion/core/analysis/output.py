@@ -1,5 +1,5 @@
 """
-分析结果数据结构 v1.11
+分析结果数据结构 v1.12
 ========================
 支持复合情感、连续强度等新特性
 """
@@ -65,7 +65,7 @@ class UserProfile:
 @dataclass(frozen=True)
 class AnalysisResult:
     """
-    完整分析结果 v1.11
+    完整分析结果 v1.12
 
     新增字段:
     - emotion_mix: 情感混合
