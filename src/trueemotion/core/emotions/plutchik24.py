@@ -1,5 +1,5 @@
 """
-TrueEmotion - 人性化情感系统 v1.12
+TrueEmotion - 人性化情感系统 v1.13
 =====================================
 让AI拥有像人类一样丰富、复杂、真实的情感
 
@@ -303,7 +303,44 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
     ),
     "hope_fear": (
         "忐忑", "惶恐", "焦虑", "担忧", "忧心忡忡", "心悬", "不安", "放心不下",
-        "战战兢兢", "如履薄冰", "惴惴不安"
+        "战战跟鞋", "如履薄冰", "惴惴不安"
+    ),
+    # 新增复合情感
+    "frustration_hopelessness": (
+        "无奈", "无助", "绝望", "无能为力", "算了", "就这样吧", "无所谓",
+        "没意思", "无所谓了", "爱咋咋", "躺平", "摆烂"
+    ),
+    "love_admiration": (
+        "崇拜", "仰慕", "钦佩", "心动", "暗恋", "crush", "喜欢", "欣赏",
+        "被圈粉", "粉了", "路转粉", "始于颜值", "陷于才华"
+    ),
+    "painful_joy": (
+        "喜极而泣", "喜极而悲", "激动", "热泪盈眶", "感动落泪", "泣不成声",
+        "泪流满面", "哭了", "太激动了", "太感动了"
+    ),
+    "angry_fear": (
+        "恐慌", "惊惧", "惧怕", "畏惧", "害怕", "惊恐", "惶恐不安",
+        "心惊胆战", "坐立不安", "六神无主"
+    ),
+    "sadness_guilt": (
+        "自责", "愧疚", "对不起", "过意不去", "心里不安", "亏欠",
+        "对不起大家", "让大家失望了"
+    ),
+    "jealous_love": (
+        "吃醋", "醋意", "酸了", "嫉妒", "占有欲", "吃醋了", "酸溜溜",
+        "凭什么", "不公", "委屈"
+    ),
+    "shock_denial": (
+        "不敢相信", "不可能", "不会吧", "假的吧", "开什么玩笑",
+        "说笑吧", "骗人的吧", "我不信"
+    ),
+    "relief_sadness": (
+        "如释重负又难过", "松口气又担心", "放心了但也失落",
+        "终于没事了可是", "好了但感觉空落落的"
+    ),
+    "happy_sadness": (
+        "又开心又难过", "悲喜交加", "五味杂陈", "复杂", "说不清",
+        "开心也难过", "高兴也难受", "又笑又哭"
     ),
 }
 
@@ -445,5 +482,54 @@ def calculate_compound_emotion(emotions: Dict[str, float]) -> Dict[str, float]:
             # anger + disgust = contempt
             if {e1, e2} == {"anger", "disgust"}:
                 compound_emotions["contempt"] = combined * 1.0
+
+            # 新增复合情感组合
+            # anger + fear = 恐慌
+            if {e1, e2} == {"anger", "fear"}:
+                compound_emotions["angry_fear"] = combined * 0.85
+
+            # sadness + guilt = 自责愧疚
+            if {e1, e2} == {"sadness", "guilt"}:
+                compound_emotions["sadness_guilt"] = combined * 0.9
+
+            # love + envy = 吃醋
+            if {e1, e2} == {"love", "envy"}:
+                compound_emotions["jealous_love"] = combined * 0.8
+
+            # surprise + sadness = 震惊否认
+            if {e1, e2} == {"surprise", "sadness"}:
+                compound_emotions["shock_denial"] = combined * 0.85
+
+            # relief + sadness = 如释重负又失落
+            if {e1, e2} == {"relief", "sadness"}:
+                compound_emotions["relief_sadness"] = combined * 0.75
+
+            # anger + sadness = 愤怒悲伤混合
+            if {e1, e2} == {"anger", "sadness"}:
+                compound_emotions["sadness_guilt"] = combined * 0.8
+
+            # joy + guilt = 开心但愧疚
+            if {e1, e2} == {"joy", "guilt"}:
+                compound_emotions["bittersweet"] = combined * 0.7
+
+    # 检查三元复合情感
+    if len(emotions) >= 3:
+        emotion_set = set(emotions.keys())
+
+        # joy + sadness + trust = painful_joy (喜极而泣)
+        if {"joy", "sadness", "trust"}.issubset(emotion_set):
+            compound_emotions["painful_joy"] = min(emotions["joy"], emotions["sadness"], emotions["trust"]) * 1.2
+
+        # joy + anticipation + fear = hope_fear
+        if {"joy", "anticipation", "fear"}.issubset(emotion_set):
+            compound_emotions["hope_fear"] = min(emotions["joy"], emotions["anticipation"], emotions["fear"]) * 0.9
+
+        # love + admiration + joy = love_admiration
+        if {"love", "admiration", "joy"}.issubset(emotion_set):
+            compound_emotions["love_admiration"] = min(emotions["love"], emotions["admiration"], emotions["joy"]) * 1.1
+
+        # sadness + anger + guilt = frustration_hopelessness
+        if {"sadness", "anger", "guilt"}.issubset(emotion_set):
+            compound_emotions["frustration_hopelessness"] = min(emotions["sadness"], emotions["anger"], emotions["guilt"]) * 0.85
 
     return compound_emotions

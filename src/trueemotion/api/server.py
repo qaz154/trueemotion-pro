@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.12 FastAPI Server
+TrueEmotion Pro v1.13 FastAPI Server
 ====================================
 人性化的情感AI Web服务
 """
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TrueEmotion Pro API",
     description="""
-## TrueEmotion Pro v1.12 - 人性化情感AI系统
+## TrueEmotion Pro v1.13 - 人性化情感AI系统
 
 让AI拥有像人类一样丰富、复杂、真实的情感。
 
@@ -72,7 +72,7 @@ app = FastAPI(
 支持35+种情感：joy, sadness, anger, fear, anticipation, surprise, disgust, trust
 以及复合情感如：bittersweet, hope_fear, love_hope 等
     """,
-    version="1.12",
+    version="1.13",
     lifespan=lifespan,
 )
 
@@ -91,7 +91,7 @@ async def root():
     """服务信息"""
     return JSONResponse({
         "name": "TrueEmotion Pro",
-        "version": "1.12",
+        "version": "1.13",
         "description": "人性化情感AI系统",
         "docs": "/docs",
         "health": "/health",
@@ -111,7 +111,7 @@ async def health_check():
     """健康检查"""
     if _pro_instance is None:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    return JSONResponse({"status": "healthy", "version": "1.12"})
+    return JSONResponse({"status": "healthy", "version": "1.13"})
 
 
 @app.post("/analyze", tags=["Analysis"])

@@ -1,9 +1,9 @@
 """
-情感分析器门面 v1.12
+情感分析器门面 v1.13
 ====================
 整合检测器、记忆系统、响应生成器
 
-v1.12 新增:
+v1.13 新增:
 - 反讽检测
 - 上下文理解
 - 主动共情
@@ -44,7 +44,7 @@ class EmotionAnalyzer:
     """
     情感分析器门面
 
-    v1.12 新特性:
+    v1.13 新特性:
     - 人性化情感检测（连续强度、复合情感）
     - 更细腻的共情响应
     - 上下文感知
@@ -149,7 +149,7 @@ class EmotionAnalyzer:
 
         return AnalysisResult(
             version="1.11",
-            engine="humanized-v1.12",
+            engine="humanized-v1.13",
             emotion=EmotionOutput(
                 primary=effective_emotion,
                 intensity=effective_intensity,

@@ -1,5 +1,5 @@
 """
-反讽检测器 v1.12
+反讽检测器 v1.13
 ================
 识别真实情感 vs 表面情感
 
@@ -48,23 +48,33 @@ class IronyDetector:
         ("positive", "太好了", "anger"): 0.6,
         ("positive", "谢谢啊", "anger"): 0.7,
         ("positive", "感动", "disgust"): 0.5,
+        ("positive", "太棒了", "contempt"): 0.7,
+        ("positive", "绝了", "disgust"): 0.6,
+        ("positive", "完美", "contempt"): 0.6,
 
         # 中性话语，实际负面
         ("neutral", "还行", "disgust"): 0.6,
         ("neutral", "一般", "contempt"): 0.5,
         ("neutral", "就那样", "contempt"): 0.6,
         ("neutral", "还好", "boredom"): 0.4,
+        ("neutral", "凑合", "disgust"): 0.5,
+        ("neutral", "过得去", "boredom"): 0.4,
 
         # 夸张正面，实际负面
         ("exaggerated", "太厉害了", "contempt"): 0.8,
         ("exaggerated", "哇塞", "fear"): 0.5,
         ("exaggerated", "我的天", "fear"): 0.4,
+        ("exaggerated", "天哪", "fear"): 0.3,
+        ("exaggerated", "牛啊", "contempt"): 0.6,
     }
 
     # 反讽关键词
     IRONY_KEYWORDS = [
         "可真", "真是", "好是", "倒是", "还挺", "挺会",
         "会说话", "真会说", "可真行", "你可真是",
+        "真行", "可真会", "可真会装", "装什么",
+        "有什么好", "有什么好得意", "就你厉害",
+        "你最棒", "你最厉害", "你可真行",
     ]
 
     # 矛盾情感词组

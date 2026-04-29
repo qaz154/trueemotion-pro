@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.12 API
+TrueEmotion Pro v1.13 API
 人性化情感AI系统
 """
 
@@ -143,7 +143,7 @@ class TrueEmotionPro:
             dict: 系统统计信息
         """
         stats = self._memory.get_stats()
-        stats["version"] = "1.12"
+        stats["version"] = "1.13"
         stats["evolution"] = self._evolution.get_evolution_status()
         return stats
 

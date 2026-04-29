@@ -41,6 +41,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Memory/User data
-memory/
+# Memory/User data (keep source files, ignore user data)
+memory/users/
+memory/patterns/
+memory/global_patterns/
 *.json.bak
