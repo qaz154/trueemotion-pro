@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trueemotion-pro"
-version = "1.12"
-description = "TrueEmotion Pro v1.12 - 人性化情感AI系统"
+version = "1.13"
+description = "TrueEmotion Pro v1.13 - 人性化情感AI系统"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -43,9 +43,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-repo/trueemotion-pro"
-Documentation = "https://github.com/your-repo/trueemotion-pro#readme"
-Repository = "https://github.com/your-repo/trueemotion-pro"
+Homepage = "https://github.com/qaz154/trueemotion-pro"
+Documentation = "https://github.com/qaz154/trueemotion-pro#readme"
+Repository = "https://github.com/qaz154/trueemotion-pro"
 
 [project.scripts]
 trueemotion = "trueemotion.__main__:main"

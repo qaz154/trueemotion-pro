@@ -184,9 +184,11 @@ class EmotionAnalyzer:
     def _is_compound_emotion(self, emotion: str) -> bool:
         """判断是否为复合情感"""
         compound_emotions = {
-            "bittersweet", "love", "hope", "despair", "regret",
-            "guilt", "pride", "envy", "contempt", "gratitude_love",
-            "hope_fear",
+            "bittersweet", "painful_joy", "happy_sadness",
+            "love", "hope", "despair", "regret",
+            "guilt", "pride", "envy", "contempt",
+            "gratitude_love", "hope_fear", "jealous_love",
+            "frustration_hopelessness", "love_admiration",
         }
         return emotion in compound_emotions
 

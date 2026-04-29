@@ -3,7 +3,7 @@ TrueEmotion Pro v1.13 API
 人性化情感AI系统
 """
 
-from typing import Optional
+from typing import Optional, List
 
 from trueemotion.core.analysis.analyzer import EmotionAnalyzer, AnalyzeOptions
 from trueemotion.core.analysis.output import AnalysisResult
@@ -75,6 +75,23 @@ class TrueEmotionPro:
         )
 
         return self._analyzer.analyze(text, options)
+
+    def analyze_batch(
+        self,
+        texts: List[str],
+        user_id: str = "default",
+    ) -> List[AnalysisResult]:
+        """
+        批量分析文本情感
+
+        Args:
+            texts: 输入文本列表
+            user_id: 用户ID
+
+        Returns:
+            List[AnalysisResult]: 分析结果列表
+        """
+        return [self.analyze(text, user_id=user_id) for text in texts]
 
     def get_user_profile(self, user_id: str = "default") -> dict:
         """

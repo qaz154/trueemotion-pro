@@ -18,9 +18,9 @@ def pro():
 
 @pytest.fixture
 def detector():
-    """Create RuleBasedEmotionDetector instance for testing."""
-    from trueemotion.core.emotions.detector import RuleBasedEmotionDetector
-    return RuleBasedEmotionDetector()
+    """Create HumanEmotionDetector instance for testing."""
+    from trueemotion.core.emotions.detector import HumanEmotionDetector
+    return HumanEmotionDetector()
 
 
 @pytest.fixture(autouse=True)

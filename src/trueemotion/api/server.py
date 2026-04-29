@@ -6,7 +6,7 @@ TrueEmotion Pro v1.13 FastAPI Server
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +39,12 @@ class LearnRequest(BaseModel):
 class ResetRequest(BaseModel):
     """重置请求模型"""
     user_id: str = Field(..., description="用户ID")
+
+
+class BatchAnalyzeRequest(BaseModel):
+    """批量分析请求模型"""
+    texts: List[str] = Field(..., min_length=1, max_length=100, description="待分析的文本列表")
+    user_id: str = Field(default="default", description="用户ID")
 
 
 # Global instance
@@ -76,12 +82,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS配置 - 生产环境应限制来源
+CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+]
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -179,6 +193,59 @@ async def analyze_text(request: AnalyzeRequest):
                 "context_used": result.context_used,
                 "explanation": result.explanation,
             },
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/analyze/batch", tags=["Analysis"])
+async def analyze_batch_text(request: BatchAnalyzeRequest):
+    """
+    批量分析文本情感
+
+    - **texts**: 待分析的文本列表（最多100条）
+    - **user_id**: 用户ID（用于记忆和学习）
+    """
+    if _pro_instance is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    try:
+        results = _pro_instance.analyze_batch(
+            texts=request.texts,
+            user_id=request.user_id,
+        )
+
+        return JSONResponse({
+            "success": True,
+            "data": [
+                {
+                    "version": result.version,
+                    "engine": result.engine,
+                    "emotion": {
+                        "primary": result.emotion.primary,
+                        "intensity": result.emotion.intensity,
+                        "intensity_label": result.emotion.intensity_label,
+                        "vad": {
+                            "valence": result.emotion.vad[0],
+                            "arousal": result.emotion.vad[1],
+                            "dominance": result.emotion.vad[2],
+                        },
+                        "confidence": result.emotion.confidence,
+                        "all_emotions": result.emotion.all_emotions,
+                        "compound_emotions": result.emotion.compound_emotions,
+                        "emotion_mix": result.emotion.emotion_mix,
+                    },
+                    "human_response": {
+                        "text": result.human_response.text,
+                        "empathy_type": result.human_response.empathy_type,
+                        "intensity_level": result.human_response.intensity_level,
+                        "follow_up": result.human_response.follow_up,
+                        "empathy_depth": result.human_response.empathy_depth,
+                        "tone": result.human_response.tone,
+                    },
+                }
+                for result in results
+            ],
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

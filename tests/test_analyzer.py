@@ -12,8 +12,8 @@ class TestEmotionAnalyzer:
         """Test basic analysis"""
         result = pro.analyze("今天太开心了！")
 
-        assert result.version == "4.0.0"
-        assert result.engine == "rule-based + empathy"
+        assert result.version == "1.13"
+        assert result.engine == "humanized-v1.13"
         assert result.emotion.primary in ["joy", "ecstasy", "optimism", "anticipation"]
         assert result.emotion.intensity > 0
         assert len(result.emotion.vad) == 3
