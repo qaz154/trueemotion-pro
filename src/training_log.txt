@@ -1,0 +1,2 @@
+C:\Users\·ç\AppData\Roaming\Accio\pre-install\2186c6e1bbb5\python\Lib\site-packages\torch\utils\data\dataloader.py:1118: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  super().__init__(loader)
