@@ -1,9 +1,10 @@
-# TrueEmotion Pro v1.11
+# TrueEmotion Pro v1.13
 
 **人性化情感AI系统** - 让AI拥有像人类一样丰富、复杂、真实的情感
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.13-blue.svg)]()
 
 ## 核心理念
 
@@ -13,7 +14,7 @@
 |------|------|
 | **情感复合** | 多种情感同时存在，如"喜极而泣"、"带泪的微笑" |
 | **连续强度** | 情感不是0/1，而是0.0-1.0的连续光谱 |
-| **情感记忆** | 过去的经历塑造当下的感受 |
+| **情感记忆** | 过去的经历塑造当下的感受，记忆持久且会衰减 |
 | **性格建模** | 有人外放、有人内敛 |
 | **关系感知** | 对不同人情感反应不同 |
 | **情境依赖** | 同样的话在不同情境下含义不同 |
@@ -22,14 +23,16 @@
 
 | 特性 | 说明 |
 |------|------|
-| **35+情感类别** | 细腻情感分类，包含复合情感 |
-| **复合情感检测** | 自动检测"悲喜交加"等复合情感 |
+| **40+情感类别** | 包含基础情感、细腻情感、复合情感 |
+| **复合情感检测** | 自动检测"悲喜交加"、"吃醋"等复合情感 |
 | **连续强度计算** | 0.0-1.0连续分数，强度标签（极微/微弱/轻微/中等/强烈/极致） |
-| **VAD三维模型** | Valence-Arousal-Dominance 情感坐标 |
-| **人性化共情回复** | 口语化、有温度、非模板化 |
-| **性格与关系系统** | 个性化响应 |
-| **持续进化** | 从对话中学习新模式 |
-| **零依赖** | 纯规则系统，无需PyTorch |
+| **VAD三维模型** | Valence-Arousal-Dominance 情感坐标系统 |
+| **反讽检测** | 识别"挺好的"等反讽表达的真实情感 |
+| **人性化共情回复** | 口语化、有温度、非模板化，支持多种语气 |
+| **智能记忆系统** | 关键词提取、相似度匹配、强化衰减机制 |
+| **持续进化** | 从对话中学习新模式，多维度置信度计算 |
+| **FastAPI Web API** | 完整的REST接口，支持Web演示页面 |
+| **零外部依赖** | 纯规则系统，无需PyTorch等ML框架 |
 
 ## 架构
 
@@ -37,21 +40,27 @@
 src/trueemotion/
 ├── api/                        # 统一API层
 │   ├── routes.py              # TrueEmotionPro 主类
-│   └── schemas.py             # 数据模型
+│   ├── server.py             # FastAPI Web服务
+│   ├── schemas.py            # 数据模型
+│   └── templates/
+│       └── demo.html         # Web演示页面
 ├── core/                       # 核心领域
 │   ├── emotions/
-│   │   ├── plutchik24.py    # 35+情感定义及VAD
-│   │   ├── detector.py       # 人性化检测器
-│   │   └── personality.py     # 性格与关系系统
+│   │   ├── plutchik24.py    # 40+情感定义及VAD坐标
+│   │   ├── detector.py        # 人性化检测器
+│   │   ├── irony.py          # 反讽检测器
+│   │   └── personality.py    # 性格与关系系统
 │   ├── analysis/
 │   │   ├── analyzer.py       # 分析器门面
-│   │   └── output.py          # 数据结构
+│   │   ├── context.py        # 上下文分析器
+│   │   └── output.py         # 数据结构
 │   └── response/
-│       └── engine.py          # 人性化共情引擎
+│       ├── engine.py          # 人性化共情引擎
+│       └── proactive.py       # 主动共情引擎
 ├── memory/                     # 记忆层 (Repository模式)
-│   └── repository.py
+│   └── repository.py          # v1.13: 智能记忆系统
 └── learning/                  # 进化层
-    └── evolution.py
+    └── evolution.py           # v1.13: 多维度进化管理
 ```
 
 ## 安装
@@ -61,11 +70,17 @@ src/trueemotion/
 git clone https://github.com/qaz154/trueemotion-pro.git
 cd trueemotion-pro
 
-# 添加到Python路径
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+# 安装API依赖（可选）
+pip install fastapi uvicorn pydantic
+
+# 设置Python路径
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"  # Linux/Mac
+set PYTHONPATH=%PYTHONPATH%;%cd%\src          # Windows
 ```
 
 ## 快速开始
+
+### Python API
 
 ```python
 import sys
@@ -80,12 +95,35 @@ pro = TrueEmotionPro()
 result = pro.analyze("今天太开心了！终于完成了项目！")
 
 print(f"主要情感: {result.emotion.primary}")           # joy
-print(f"强度: {result.emotion.intensity}")           # 0.869
+print(f"强度: {result.emotion.intensity}")           # 0.85
 print(f"强度标签: {result.emotion.intensity_label}") # 强烈
 print(f"VAD: {result.emotion.vad}")                  # (0.85, 0.50, 0.70)
-print(f"情感混合: {result.emotion_mix}")             # 以喜悦为主，伴有轻微...
 print(f"共情回复: {result.human_response.text}")    # "太为你高兴了！说说怎么回事！"
+print(f"追问: {result.human_response.follow_up}")   # "然后呢？"
 ```
+
+### Web API
+
+```bash
+# 启动服务
+uvicorn trueemotion.api.server:app --reload --port 8000
+
+# API文档
+# http://localhost:8000/docs
+
+# Web演示页面
+# http://localhost:8000/demo
+```
+
+### REST API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/analyze` | POST | 分析文本情感 |
+| `/profile/{user_id}` | GET | 获取用户画像 |
+| `/memory/status` | GET | 获取记忆状态 |
+| `/evolve` | POST | 触发情感进化 |
+| `/stats` | GET | 获取系统统计 |
 
 ## 情感类别
 
@@ -104,52 +142,56 @@ print(f"共情回复: {result.human_response.text}")    # "太为你高兴了！
 
 ### 复合情感 (15+种)
 
-- **复合**: love, guilt, envy, contempt, optimism, despair, pride, etc.
-- **细腻**: melancholy, nostalgia, longing, compassion, gratitude, regret, etc.
-- **特殊**: bittersweet (悲喜交加), hope_fear (忐忑)
+| 情感 | 组合 | 说明 |
+|------|------|------|
+| bittersweet | joy + sadness | 悲喜交加 |
+| love | joy + trust | 爱慕 |
+| hope | joy + anticipation | 希望 |
+| despair | sadness + fear | 绝望 |
+| anxiety | fear + anticipation | 焦虑 |
+| jealous_love | love + envy | 吃醋 |
+| happy_sadness | joy + sadness | 又开心又难过 |
+| painful_joy | joy + sadness + trust | 喜极而泣 |
+| frustration_hopelessness | sadness + anger + guilt | 无奈绝望 |
+| hope_fear | joy + anticipation + fear | 忐忑不安 |
 
-## API文档
+### 细腻情感
 
-### TrueEmotionPro.analyze()
+- **柔和**: serenity, pensiveness, boredom, acceptance, interest
+- **复杂**: melancholy, nostalgia, longing, compassion, gratitude
+- **极端**: ecstasy, grief, rage, terror, loathing, astonishment
+
+## 智能记忆系统 v1.13
+
+### 核心特性
 
 ```python
-result = pro.analyze(
-    text="工作好累啊，老加班",
-    context=None,           # 对话上下文
-    learn=True,            # 是否学习
-    response="确实累...",   # AI回复
-    feedback=0.8,          # 用户反馈 0-1
-    user_id="user123"     # 用户ID
+# 学习新模式（自动提取关键词）
+pro.analyze(
+    text="工作好累啊",
+    learn=True,
+    response="确实累，注意身体",
+    feedback=0.9,  # 高反馈会被强化
+    user_id="user1"
 )
+
+# 查找相似模式
+patterns = pro._memory.find_similar_patterns(
+    user_id="user1",
+    emotion="sadness",
+    text="被老板骂了，心情很差"
+)
+
+# 触发进化
+result = pro.evolve()
 ```
 
-**返回 AnalysisResult:**
+### 记忆强化衰减机制
 
-```python
-{
-    "version": "1.11",
-    "engine": "humanized-v1.11",
-    "emotion": {
-        "primary": "boredom",
-        "intensity": 0.202,
-        "vad": (-0.30, -0.50, -0.20),
-        "confidence": 0.202,
-        "intensity_label": "轻微",
-        "all_emotions": {"boredom": 0.202},
-        "compound_emotions": {},
-        "emotion_mix": [("boredom", 0.202)],
-    },
-    "human_response": {
-        "text": "嗯，听起来不太顺心",
-        "empathy_type": "共情回应",
-        "intensity_level": "low",
-        "follow_up": "然后呢？",
-        "empathy_depth": "温和",
-        "tone": "温和",
-    },
-    "emotion_mix": "以倦怠为主",
-}
-```
+- **高反馈(≥0.8)**: 模式自动同步到全局模式库，跨用户共享
+- **使用时强化**: 每次使用增加 REINFORCEMENT_BOOST (0.15)
+- **闲置衰减**: 长期未使用的模式会缓慢衰减
+- **相似度匹配**: 60%关键词重叠认为是相似模式
 
 ## 共情回复示例
 
@@ -157,22 +199,22 @@ result = pro.analyze(
 |----------|------|---------------------|
 | "太开心了！！！终于完成了项目！！" | joy (0.87) | "太为你高兴了！说说怎么回事！" |
 | "被裁员了，感觉人生没有希望了..." | despair (0.24) | "先冷静一下，我陪着你" |
-| "看着他成功了，既高兴又有点嫉妒" | joy+envy | "听起来挺复杂的，我理解那种感觉" |
+| "看着他成功了，既高兴又有点嫉妒" | envy+joy | "确实会羡慕呢，能理解" |
+| "吃醋了，男朋友和别的女生说话" | jealous_love | "很正常的心情" |
+| "又开心又难过，五味杂陈" | happy_sadness | "五味杂陈啊，这种感觉最难形容了" |
 
-## 持续进化
+## 反讽检测
 
 ```python
-# 学习新模式
-pro.analyze(
-    "工作好累啊",
-    learn=True,
-    response="确实累，注意身体",
-    feedback=0.8,
-    user_id="user1"
-)
-
-# 执行进化 - 分析模式，提取高反馈规则
-result = pro.evolve()
+# 检测反讽
+result = pro.analyze("挺好的，你真行啊！")
+# 如果检测到反讽：
+# result.explanation["irony"] = {
+#     "is_irony": True,
+#     "surface_emotion": "joy",
+#     "true_emotion": "contempt",
+#     "confidence": 0.75
+# }
 ```
 
 ## 测试
@@ -183,19 +225,38 @@ python test_api.py
 
 # 运行pytest
 pytest tests/ -v
+
+# 验证核心功能
+python -c "
+import sys; sys.path.insert(0, 'src')
+from trueemotion import TrueEmotionPro
+pro = TrueEmotionPro()
+r = pro.analyze('今天太开心了！')
+assert r.emotion.primary == 'joy'
+print('所有测试通过!')
+"
 ```
 
 ## 依赖
 
-- Python 3.8+
-- 无外部依赖（纯规则系统）
+- Python 3.9+
+- **核心系统**: 无外部依赖（纯规则系统）
+- **Web API**: fastapi, uvicorn, pydantic
 
 ## 版本历史
 
-- **v1.11**: 人性化情感系统 - 复合情感、连续强度、性格建模、关系感知
-- **v4.0**: 架构重构，零依赖
-- **v3.x**: 混合神经网络 + 规则系统
+| 版本 | 说明 |
+|------|------|
+| **v1.13** | 全面升级 - 智能记忆系统、增强复合情感、多维度进化 |
+| **v1.12** | FastAPI Web API与Web演示页面 |
+| **v1.11** | 人性化情感系统 - 复合情感、连续强度、性格建模 |
+| **v4.0** | 架构重构，零依赖 |
+| **v3.x** | 混合神经网络 + 规则系统 |
 
 ## License
 
-MIT License
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+---
+
+**TrueEmotion Pro** - 让AI拥有像人类一样丰富的情感
