@@ -1,8 +1,9 @@
 """
-TrueEmotion Pro - 新一代中文情感AI系统 v4.0
+TrueEmotion Pro v1.11 - 人性化情感AI系统
+让AI拥有像人类一样丰富、复杂、真实的情感
 """
 
-__version__ = "4.0.0"
+__version__ = "1.11"
 __author__ = "TrueEmotion Team"
 
 from trueemotion.api.routes import TrueEmotionPro, create_analyzer
@@ -15,7 +16,7 @@ from trueemotion.api.schemas import (
     EvolutionResult,
     SystemStats,
 )
-from trueemotion.core.emotions.detector import RuleBasedEmotionDetector
+from trueemotion.core.emotions.detector import HumanEmotionDetector
 
 __all__ = [
     # Main API
@@ -30,5 +31,5 @@ __all__ = [
     "EvolutionResult",
     "SystemStats",
     # Core
-    "RuleBasedEmotionDetector",
+    "HumanEmotionDetector",
 ]

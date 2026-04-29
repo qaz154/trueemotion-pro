@@ -1,296 +1,555 @@
 """
-共情响应生成引擎
-生成有血有肉的、口语化的情感化回复
+人性化共情响应引擎 v1.11
+=========================
+让AI的回复像真人一样自然、有温度
+
+核心理念:
+1. 真实感 - 不像模板，有随机性
+2. 共情深度 - 不是简单安慰，是真正的理解
+3. 个性化 - 根据性格和关系调整
+4. 细腻度 - 考虑情感复合、强度变化
+5. 口语化 - 符合日常对话习惯
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List, Dict, Callable
+import random
 
-from trueemotion.core.analysis.output import HumanResponse
-from trueemotion.core.emotions.plutchik24 import EMOTION_VAD
-
-
-# 共情回复模板
-RESPONSE_TEMPLATES: dict[str, dict[str, list[str]]] = {
-    "joy": {
-        "support": [
-            "太为你高兴了！说说怎么回事！",
-            "哇，太棒了！详细讲讲呗～",
-            "开心！这种好事必须分享！",
-            "太好了！替你开心！",
-        ],
-        "excited": [
-            "太开心了吧！哈哈哈！",
-            "哇哇哇，好羡慕！",
-            "啊啊啊我也好开心！",
-            "哈哈哈太欢乐了！",
-        ],
-    },
-    "sadness": {
-        "support": [
-            "先缓缓，我陪着你",
-            "心疼你，说说怎么了",
-            "我懂，真的不容易",
-            "别憋着，说出来会好受点",
-        ],
-        "comfort": [
-            "抱抱你，会好的",
-            "难过的话先不说，我听着",
-            "不管怎样，我都在",
-            "先给自己倒杯水，慢慢来",
-        ],
-    },
-    "anger": {
-        "support": [
-            "确实气人！换我我也急！",
-            "太理解你了，换我我也火大",
-            "这种事儿搁谁都得生气",
-            "消消气，别伤了身体",
-        ],
-        "calm": [
-            "先深呼吸，慢慢说",
-            "我听着，骂出来也行",
-            "气话跟我说就行，别憋着",
-            "发泄一下也好，我陪你",
-        ],
-    },
-    "fear": {
-        "support": [
-            "别怕，有我在",
-            "先冷静下来，我们一起想办法",
-            "不管怎样，先保证安全",
-            "我理解，真的挺吓人的",
-        ],
-        "calm": [
-            "深呼吸，慢慢说",
-            "没事的，我听着呢",
-            "先冷静一下",
-            "一步一步来，别急",
-        ],
-    },
-    "anxiety": {
-        "support": [
-            "我理解你的担心",
-            "慢慢来，别给自己太大压力",
-            "先理清思路，我们一起看看",
-            "不管结果怎样，我都在",
-        ],
-        "calm": [
-            "先停下来，深呼吸",
-            "一件一件来，不着急",
-            "我陪着你，慢慢来",
-            "先放下，别想太多",
-        ],
-    },
-    "surprise": {
-        "excited": [
-            "哇！真的假的！",
-            "这也太意外了吧！",
-            "什么？！不会吧！",
-            "天哪，说说怎么回事！",
-        ],
-        "curious": [
-            "什么情况？快说说！",
-            "真的假的？详细讲讲！",
-            "这也太惊人了！",
-            "等等，让我缓一缓",
-        ],
-    },
-    "love": {
-        "warm": [
-            "好甜啊！说说是怎么回事",
-            "好羡慕你们！",
-            "真好啊！",
-            "这种感觉很棒对吧！",
-        ],
-        "excited": [
-            "啊啊啊好甜！",
-            "说详细点我想听！",
-            "好幸福的感觉！",
-            "好甜好甜好甜！",
-        ],
-    },
-    "trust": {
-        "warm": [
-            "能感受到你的信任",
-            "谢谢你的信任，我会努力的",
-            "一起加油！",
-            "有你在真好",
-        ],
-        "support": [
-            "一起面对",
-            "我们是一伙的",
-            "有我呢",
-            "放心交给我",
-        ],
-    },
-    "anticipation": {
-        "excited": [
-            "期待期待！说说是什么！",
-            "好想快点知道！",
-            "有这种好事？快说快说！",
-            "感觉要有什么好事发生了！",
-        ],
-        "curious": [
-            "是什么什么？好想知道！",
-            "说说你的计划？",
-            "期待你们的想法",
-            "有什么计划吗？",
-        ],
-    },
-    "guilt": {
-        "comfort": [
-            "知错能改就好",
-            "谁都会犯错，别太自责",
-            "能意识到就很好",
-            "我理解你的感受",
-        ],
-        "support": [
-            "没关系，谁都会这样",
-            "重要的是你现在怎么想",
-            "过去的事就让它过去吧",
-            "下次会更好的",
-        ],
-    },
-    "envy": {
-        "warm": [
-            "确实会羡慕呢",
-            "能理解你的心情",
-            "没关系，每个人都有自己的节奏",
-            "你也会有的",
-        ],
-        "support": [
-            "加油，你也可以的",
-            "相信你也会有的",
-            "一起努力",
-            "你的日子也会越来越好的",
-        ],
-    },
-    "despair": {
-        "comfort": [
-            "先停下来，深呼吸",
-            "不管怎样，我都在",
-            "先不要想太多，休息一下",
-            "明天会好的",
-        ],
-        "support": [
-            "我陪着你",
-            "慢慢来，不着急",
-            "先休息，其他的交给我",
-            "我在这里，不会走的",
-        ],
-    },
-    "neutral": {
-        "support": [
-            "嗯嗯，我听着呢",
-            "然后呢？",
-            "说说看",
-            "怎么想的？",
-        ],
-        "curious": [
-            "然后呢？",
-            "还有吗？",
-            "想多了解一点",
-            "展开说说？",
-        ],
-    },
-}
-
-
-# 追问模板
-FOLLOW_UP_TEMPLATES: dict[str, list[str]] = {
-    "joy": ["然后呢？", "详细讲讲！", "太棒了！", "继续继续！"],
-    "sadness": ["发生什么了？", "想说说吗？", "我听着", "愿意的话说出来"],
-    "anger": ["怎么了？", "什么事让你这么生气？", "说说看", "我帮你分析分析"],
-    "fear": ["在担心什么？", "能说说吗？", "我陪你", "别害怕"],
-    "anxiety": ["在担心什么？", "有什么心事吗？", "说说看", "我帮你想想"],
-    "surprise": ["什么情况？！", "真的假的？！", "详细说说！", "不会吧！"],
-    "love": ["哇！说详细点！", "好甜！", "怎么认识的？", "然后呢然后呢？"],
-    "trust": ["什么事？", "怎么做到的？", "说说看", "一起分享"],
-    "anticipation": ["什么计划？", "然后呢？", "好期待啊！", "说说你的想法"],
-    "guilt": ["发生什么了？", "想说说吗？", "我陪你", "别太自责"],
-    "envy": ["羡慕什么？", "你也会有更好的", "想聊聊吗？", "一起加油"],
-    "despair": ["先休息一下", "我陪着你", "慢慢来", "不着急"],
-    "neutral": ["嗯嗯", "然后呢？", "怎么想的？", "说说看"],
-}
+from trueemotion.core.emotions.personality import Personality, Relationship, PersonalityEngine
 
 
 @dataclass
-class EmpathyEngine:
-    """
-    共情引擎
+class EmpathyResponse:
+    """共情响应"""
+    text: str
+    empathy_type: str           # support, comfort, excitement, calm, etc.
+    intensity_level: str        # 极致, 强烈, 中等, 轻微, 极微
+    follow_up: Optional[str] = None
+    tone: str = "温暖"         # 语气描述
+    adaptation_notes: List[str] = None  # 调整说明
 
-    生成符合情感的、口语化的、人性化的回复
+    def __post_init__(self):
+        if self.adaptation_notes is None:
+            self.adaptation_notes = []
+
+
+class HumanEmpathyEngine:
     """
+    人性化共情引擎
+
+    特点:
+    1. 多层响应模板 - 覆盖不同情感和强度
+    2. 随机性 - 同样的输入不总是同样的输出
+    3. 复合情感支持 - 如"悲喜交加"有特殊响应
+    4. 性格适应 - 根据配置的性格调整响应
+    5. 关系感知 - 根据亲密度调整语气
+    """
+
+    def __init__(
+        self,
+        personality: Optional[Personality] = None,
+        personality_engine: Optional[PersonalityEngine] = None,
+    ):
+        self._personality = personality or Personality()
+        self._personality_engine = personality_engine or PersonalityEngine(self._personality)
+
+    # ============================================================
+    # 核心响应模板
+    # ============================================================
+
+    # 深度共情响应 - 当用户表达强烈情感时
+    EMPATHETIC_RESPONSES: Dict[str, Dict[str, List[str]]] = {
+        "joy": {
+            "high": [
+                "太为你高兴了！说说怎么回事！",
+                "哇！这也太棒了吧！详细讲讲！",
+                "开心！这种好事必须分享！",
+                "太棒了！替你开心！",
+                "哇哇哇，好羡慕！快说说！",
+                "啊啊啊我也好开心！",
+                "哈哈哈太欢乐了！",
+                "好激动！快让我沾沾喜气！",
+            ],
+            "medium": [
+                "听起来很开心啊！",
+                "不错不错，为你高兴！",
+                "好事啊，说说看！",
+                "挺好的！发生什么了？",
+            ],
+            "low": [
+                "嗯，听起来还不错",
+                "是嘛，挺好的",
+                "那不错啊",
+                "挺好的继续说",
+            ],
+        },
+        "sadness": {
+            "high": [
+                "先缓缓，我陪着你",
+                "心疼你，说说怎么了",
+                "我懂，真的不容易",
+                "别憋着，说出来会好受点",
+                "抱抱你，会好的",
+                "我在这里，想说就说",
+                "先给自己倒杯水，慢慢来",
+            ],
+            "medium": [
+                "难过啊，怎么了？",
+                "听起来不太顺心",
+                "怎么了？愿意说说吗",
+                "我听着呢",
+            ],
+            "low": [
+                "嗯，心里不太好受吧",
+                "是吗，说说看",
+                "这样啊，我听着",
+            ],
+        },
+        "anger": {
+            "high": [
+                "确实气人！换我我也急！",
+                "太理解你了，换我我也火大",
+                "这种事儿搁谁都得生气",
+                "消消气，别伤了身体",
+                "气话跟我说，发泄出来",
+                "我懂，真的很让人生气",
+            ],
+            "medium": [
+                "确实挺让人生气的",
+                "换我也会不爽",
+                "怎么了？说说看",
+                "听起来很让人生气",
+            ],
+            "low": [
+                "有点不爽是吧",
+                "能理解",
+                "怎么了？",
+            ],
+        },
+        "fear": {
+            "high": [
+                "别怕，有我在",
+                "先冷静下来，我们一起想办法",
+                "不管怎样，先保证安全",
+                "我理解，真的挺吓人的",
+                "深呼吸，慢慢说",
+            ],
+            "medium": [
+                "担心什么呢？",
+                "先冷静一下",
+                "我陪着你，慢慢说",
+            ],
+            "low": [
+                "有点担心是吧",
+                "怎么了？说说看",
+            ],
+        },
+        "anxiety": {
+            "high": [
+                "我理解你的担心",
+                "慢慢来，别给自己太大压力",
+                "先理清思路，我们一起看看",
+                "不管结果怎样，我都在",
+            ],
+            "medium": [
+                "听起来有点焦虑",
+                "先停下来，深呼吸",
+                "一件一件来，不着急",
+            ],
+            "low": [
+                "有点担心是吧",
+                "怎么了？说说看",
+            ],
+        },
+        "surprise": {
+            "high": [
+                "哇！真的假的！",
+                "这也太意外了吧！",
+                "什么？！不会吧！",
+                "天哪，说说怎么回事！",
+            ],
+            "medium": [
+                "好意外！怎么了？",
+                "这有点出乎意料啊",
+                "说说看，怎么回事？",
+            ],
+            "low": [
+                "哦？怎么了？",
+                "这样啊，说说看",
+            ],
+        },
+        "love": {
+            "high": [
+                "好甜啊！说说是怎么回事",
+                "好羡慕你们！",
+                "真好啊！",
+                "这种感觉很棒对吧！",
+                "啊啊啊好甜！",
+            ],
+            "medium": [
+                "听起来很幸福啊",
+                "真好！说说看",
+                "甜蜜蜜的，羡慕！",
+            ],
+            "low": [
+                "听起来不错啊",
+                "挺好的",
+            ],
+        },
+        "gratitude": {
+            "high": [
+                "不用客气！能帮到你我也很开心",
+                "谢谢你信任我！",
+                "一起加油！",
+                "有你在真好，互相帮助嘛",
+            ],
+            "medium": [
+                "不客气！",
+                "应该的！",
+                "一起进步！",
+            ],
+            "low": [
+                "嗯",
+                "好",
+            ],
+        },
+        "guilt": {
+            "high": [
+                "知错能改就好，别太自责了",
+                "能意识到就很好了",
+                "谁都会犯错，别放在心上",
+                "重要的是你现在怎么想",
+            ],
+            "medium": [
+                "别太自责了",
+                "能理解你的心情",
+                "过去的事就让它过去吧",
+            ],
+            "low": [
+                "嗯，别想太多",
+                "都会过去的",
+            ],
+        },
+        "regret": {
+            "high": [
+                "后悔是正常的，但别太责怪自己",
+                "如果能重来你会怎么做？",
+                "过去的就让它过去吧",
+            ],
+            "medium": [
+                "确实挺遗憾的",
+                "能理解你的心情",
+            ],
+            "low": [
+                "是吗",
+                "有点可惜了",
+            ],
+        },
+        "envy": {
+            "high": [
+                "确实会羡慕呢",
+                "能理解你的心情",
+                "没关系，每个人都有自己的节奏",
+                "你也会有的，加油",
+            ],
+            "medium": [
+                "挺羡慕的哈",
+                "能理解的",
+            ],
+            "low": [
+                "是吗",
+                "每个人都有不如意的时候",
+            ],
+        },
+        "despair": {
+            "high": [
+                "先停下来，深呼吸",
+                "不管怎样，我都在",
+                "先不要想太多，休息一下",
+                "明天会好的，我陪着你",
+            ],
+            "medium": [
+                "先休息一下",
+                "我陪着你",
+                "慢慢来",
+            ],
+            "low": [
+                "先冷静一下",
+                "会好的",
+            ],
+        },
+        "confusion": {
+            "high": [
+                "听起来有点混乱，我来帮你理一理",
+                "百感交集是吧，慢慢说",
+                "我听着，我们一起想想",
+            ],
+            "medium": [
+                "确实挺复杂的",
+                "说说看，或许我能帮上忙",
+            ],
+            "low": [
+                "嗯，说说看",
+                "怎么了？",
+            ],
+        },
+        "pride": {
+            "high": [
+                "太棒了！该骄傲的时候就该骄傲！",
+                "哇，太厉害了！",
+                "必须为你点赞！",
+                "太棒了，说说怎么做到的！",
+            ],
+            "medium": [
+                "不错啊，厉害！",
+                "挺好的！",
+            ],
+            "low": [
+                "嗯，不错",
+                "挺好的",
+            ],
+        },
+        "bittersweet": {
+            "high": [
+                "悲喜交加啊，这种感觉最难形容了",
+                "我懂，有时候好事也会带着点遗憾",
+                "生活就是这样，五味杂陈",
+            ],
+            "medium": [
+                "听起来挺复杂的",
+                "我理解那种感觉",
+            ],
+            "low": [
+                "是吗",
+                "这样啊",
+            ],
+        },
+    }
+
+    # 追问模板
+    FOLLOW_UP_TEMPLATES: Dict[str, Dict[str, List[str]]] = {
+        "joy": {
+            "high": ["然后呢？", "详细讲讲！", "太棒了！", "继续继续！"],
+            "medium": ["然后呢？", "说说看？", "发生了什么？"],
+            "low": ["嗯嗯", "然后呢？"],
+        },
+        "sadness": {
+            "high": ["发生什么了？", "想说说吗？", "我听着", "愿意的话说出来"],
+            "medium": ["怎么了？", "想说就说", "我陪着你"],
+            "low": ["嗯", "我听着"],
+        },
+        "anger": {
+            "high": ["怎么了？", "什么事让你这么生气？", "说说看", "我帮你分析分析"],
+            "medium": ["怎么了？", "说说看"],
+            "low": ["嗯", "怎么了？"],
+        },
+        "fear": {
+            "high": ["在担心什么？", "能说说吗？", "我陪你", "别害怕"],
+            "medium": ["担心什么？", "说说看"],
+            "low": ["嗯", "怎么了？"],
+        },
+        "anxiety": {
+            "high": ["在担心什么？", "有什么心事吗？", "说说看", "我帮你想想"],
+            "medium": ["怎么了？", "说说看"],
+            "low": ["嗯", "怎么了？"],
+        },
+        "surprise": {
+            "high": ["什么情况？！", "真的假的？！", "详细说说！", "不会吧！"],
+            "medium": ["怎么了？", "说说看"],
+            "low": ["哦？", "什么事？"],
+        },
+        "love": {
+            "high": ["哇！说详细点！", "好甜！", "怎么认识的？", "然后呢然后呢？"],
+            "medium": ["然后呢？", "说说看"],
+            "low": ["嗯嗯", "然后呢？"],
+        },
+        "default": {
+            "high": ["然后呢？", "说说看", "我听着"],
+            "medium": ["嗯嗯", "然后呢？"],
+            "low": ["嗯", "是吗？"],
+        },
+    }
+
+    # 语气词/填充词
+    FILLERS = [
+        "啊", "呢", "吧", "呀", "哦", "嗯", "诶", "唉", "嗨",
+        "", "", "", "",  # 空的多一些，降低出现概率
+    ]
+
+    # ============================================================
+    # 核心方法
+    # ============================================================
 
     def generate(
         self,
         emotion: str,
         intensity: float,
         context: Optional[str] = None,
-    ) -> HumanResponse:
+        relationship: Optional[Relationship] = None,
+    ) -> EmpathyResponse:
         """
-        生成共情回复
+        生成共情响应
 
         Args:
-            emotion: 情感类型
-            intensity: 强度 0-1
-            context: 可选的上下文
+            emotion: 主要情感
+            intensity: 强度 0.0-1.0
+            context: 可选上下文
+            relationship: 可选关系信息
 
         Returns:
-            HumanResponse: 生成的回复
+            EmpathyResponse: 生成的响应
         """
-        # 获取回复类型
-        empathy_type = self._get_empathy_type(emotion, intensity)
+        # 1. 确定强度等级
         intensity_level = self._get_intensity_level(intensity)
 
-        # 选择模板
-        templates = self._get_templates(emotion, empathy_type)
-        if not templates:
-            templates = self._get_templates("neutral", "support")
+        # 2. 获取基础响应
+        response_text = self._get_base_response(emotion, intensity_level)
 
-        response_text = templates[int(intensity * 1000) % len(templates)]
+        # 3. 添加随机性
+        response_text = self._add_randomness(response_text, emotion, intensity)
 
-        # 可能的追问
-        follow_up = None
-        if intensity > 0.5 and emotion != "neutral":
-            follow_ups = FOLLOW_UP_TEMPLATES.get(emotion, FOLLOW_UP_TEMPLATES["neutral"])
-            follow_up = follow_ups[int(intensity * 100) % len(follow_ups)]
+        # 4. 可能添加追问
+        follow_up = self._maybe_add_follow_up(emotion, intensity_level)
 
-        return HumanResponse(
+        # 5. 添加语气词
+        response_text = self._add_filler(response_text, intensity)
+
+        # 6. 根据性格和关系调整
+        response_text = self._personality_engine.adapt_response(
+            response_text, emotion, intensity, relationship
+        )
+
+        # 7. 获取响应类型
+        empathy_type = self._get_empathy_type(emotion, intensity)
+
+        return EmpathyResponse(
             text=response_text,
             empathy_type=empathy_type,
             intensity_level=intensity_level,
             follow_up=follow_up,
+            tone=self._personality_engine._get_tone(emotion, intensity),
         )
-
-    def _get_empathy_type(self, emotion: str, intensity: float) -> str:
-        """根据情感和强度确定回复类型"""
-        if emotion in ("joy", "surprise", "love", "anticipation"):
-            return "excited" if intensity > 0.7 else "support"
-        elif emotion in ("sadness", "fear", "despair"):
-            return "comfort" if intensity > 0.5 else "support"
-        elif emotion == "anger":
-            return "calm" if intensity > 0.6 else "support"
-        else:
-            return "support"
 
     def _get_intensity_level(self, intensity: float) -> str:
         """获取强度等级"""
-        if intensity >= 0.9:
-            return "extreme"
-        elif intensity >= 0.7:
+        if intensity >= 0.85:
             return "high"
-        elif intensity >= 0.5:
-            return "moderate"
-        elif intensity >= 0.3:
+        elif intensity >= 0.50:
+            return "medium"
+        else:
             return "low"
-        return "minimal"
 
-    def _get_templates(self, emotion: str, empathy_type: str) -> list[str]:
-        """获取回复模板"""
-        emotion_templates = RESPONSE_TEMPLATES.get(emotion, {})
-        return emotion_templates.get(
-            empathy_type,
-            RESPONSE_TEMPLATES.get("neutral", {}).get("support", [])
+    def _get_base_response(self, emotion: str, intensity_level: str) -> str:
+        """获取基础响应"""
+        # 尝试从对应情感获取
+        if emotion in self.EMPATHETIC_RESPONSES:
+            templates = self.EMPATHETIC_RESPONSES[emotion].get(
+                intensity_level,
+                self.EMPATHETIC_RESPONSES[emotion].get("low", ["嗯"])
+            )
+            return random.choice(templates)
+
+        # 回退到默认
+        templates = self.EMPATHETIC_RESPONSES.get("default", {}).get(
+            intensity_level, ["嗯"]
         )
+        return random.choice(templates)
+
+    def _add_randomness(
+        self,
+        response: str,
+        emotion: str,
+        intensity: float,
+    ) -> str:
+        """添加随机性，让同样输入有不同输出"""
+        # 高强度情感时偶尔添加强调
+        if intensity > 0.8 and random.random() < 0.3:
+            emphasis = random.choice(["真的", "确实", "完全", ""])
+            if emphasis and not response.startswith(emphasis):
+                response = emphasis + response
+
+        return response
+
+    def _maybe_add_follow_up(
+        self,
+        emotion: str,
+        intensity_level: str,
+    ) -> Optional[str]:
+        """可能添加追问"""
+        # 中高强度时更可能添加追问
+        if intensity_level == "high" and random.random() < 0.7:
+            templates = self.FOLLOW_UP_TEMPLATES.get(
+                emotion, self.FOLLOW_UP_TEMPLATES["default"]
+            ).get(intensity_level, self.FOLLOW_UP_TEMPLATES["default"]["low"])
+            return random.choice(templates)
+
+        elif intensity_level == "medium" and random.random() < 0.4:
+            templates = self.FOLLOW_UP_TEMPLATES.get(
+                emotion, self.FOLLOW_UP_TEMPLATES["default"]
+            ).get("low", ["嗯"])
+            return random.choice(templates)
+
+        return None
+
+    def _add_filler(self, response: str, intensity: float) -> str:
+        """添加语气词，让语言更自然"""
+        # 高强度时偶尔添加语气词
+        if intensity > 0.6 and random.random() < 0.25:
+            filler = random.choice(self.FILLERS)
+            if filler:
+                # 根据句尾标点决定插入位置
+                if response.endswith("！"):
+                    return response[:-1] + filler + "！"
+                elif response.endswith("。"):
+                    return response[:-1] + filler + "。"
+        return response
+
+    def _get_empathy_type(self, emotion: str, intensity: float) -> str:
+        """获取响应类型"""
+        type_mapping = {
+            "joy": "分享喜悦" if intensity > 0.5 else "温和回应",
+            "sadness": "深度共情",
+            "anger": "安抚情绪",
+            "fear": "安全感提供",
+            "anxiety": "缓解焦虑",
+            "surprise": "好奇回应",
+            "love": "温暖回应",
+            "gratitude": "谦逊回应",
+            "guilt": "安慰释怀",
+            "pride": "真诚赞美",
+            "despair": "陪伴支持",
+            "confusion": "理清思路",
+            "bittersweet": "理解复杂",
+        }
+        return type_mapping.get(emotion, "共情回应")
+
+    def generate_compound_response(
+        self,
+        emotions: Dict[str, float],
+        relationship: Optional[Relationship] = None,
+    ) -> EmpathyResponse:
+        """
+        为复合情感生成响应
+
+        Args:
+            emotions: 情感字典 (情感 -> 强度)
+            relationship: 关系信息
+        """
+        if len(emotions) == 1:
+            emotion, intensity = list(emotions.items())[0]
+            return self.generate(emotion, intensity, relationship=relationship)
+
+        # 复合情感处理
+        # 按强度排序
+        sorted_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)
+        primary_emotion, primary_intensity = sorted_emotions[0]
+
+        # 检查复合情感
+        emotion_keys = set(emotions.keys())
+
+        # 悲喜交加
+        if "joy" in emotion_keys and "sadness" in emotion_keys:
+            return self.generate("bittersweet", primary_intensity, relationship=relationship)
+
+        # 其他复合情感...
+        return self.generate(primary_emotion, primary_intensity, relationship=relationship)
