@@ -87,8 +87,9 @@ class HumanEmotionDetector:
     # 颜文字/表情
     EMOTICONS: Dict[str, str] = {
         ":)": "joy", ":-)": "joy", ":D": "joy", "=)": "joy",
-        ":(": "sadness", ":-(": "sadness", ":d": "joy", ":o": "surprise",
-        ":o": "surprise", ":O": "surprise", ">:(": "anger", ">:)": "contempt",
+        ":(": "sadness", ":-(": "sadness", ":d": "joy",
+        ":o": "surprise", ":O": "surprise",
+        ">:(": "anger", ">:)": "contempt",
         "<3": "love", ":*": "love", ";-)": "amusement", "XD": "amusement",
     }
 
@@ -97,7 +98,6 @@ class HumanEmotionDetector:
         "!!!": 1.5, "！！": 1.5,
         "...": 0.8, "。。。": 0.8,  # 省略号暗示深沉情感
         "?!": 1.3, "！？": 1.3,     # 惊讶+疑问
-        "?!": 1.3,
     }
 
     def __init__(self, threshold: float = 0.03):

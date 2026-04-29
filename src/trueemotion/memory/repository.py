@@ -276,7 +276,7 @@ class MemoryRepository:
             # 衰减计数重置
             patterns[existing_idx].decay_count = 0
             # 更新关键词
-            patterns[existing_idx].keywords = list(set(p.keywords + keywords))[:10]
+            patterns[existing_idx].keywords = list(set(patterns[existing_idx].keywords + keywords))[:10]
             pattern = patterns[existing_idx]
         else:
             # 添加新模式

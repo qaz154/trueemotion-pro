@@ -734,5 +734,16 @@ class HumanEmpathyEngine:
         if "joy" in emotion_keys and "sadness" in emotion_keys:
             return self.generate("bittersweet", primary_intensity, relationship=relationship)
 
-        # 其他复合情感...
+        # 爱+信任
+        if "love" in emotion_keys and "trust" in emotion_keys:
+            return self.generate("love", primary_intensity, relationship=relationship)
+
+        # 希望+恐惧
+        if "hope" in emotion_keys and "fear" in emotion_keys:
+            return self.generate("anxiety", primary_intensity, relationship=relationship)
+
+        # 愤怒+厌恶
+        if "anger" in emotion_keys and "disgust" in emotion_keys:
+            return self.generate("contempt", primary_intensity, relationship=relationship)
+
         return self.generate(primary_emotion, primary_intensity, relationship=relationship)
