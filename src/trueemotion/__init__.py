@@ -1,22 +1,34 @@
-# TrueEmotion - 新一代真实情感AI系统
+"""
+TrueEmotion Pro - 新一代中文情感AI系统 v4.0
+"""
 
-from trueemotion.models.emotion_model import EmotionAnalyzer, TrueEmotionModel
-from trueemotion.emotion.plutchik24 import (
-    EMOTION_DEFINITIONS,
-    get_primary_emotions,
-    get_complex_emotions,
-    get_all_emotions
+__version__ = "4.0.0"
+__author__ = "TrueEmotion Team"
+
+from trueemotion.api.routes import TrueEmotionPro, create_analyzer
+from trueemotion.api.schemas import (
+    AnalyzeRequest,
+    EmotionResult,
+    EmotionData,
+    ResponseData,
+    ProfileData,
+    EvolutionResult,
+    SystemStats,
 )
-from trueemotion.emotion.emotion_output import EmotionOutput, EmotionContext
+from trueemotion.core.emotions.detector import RuleBasedEmotionDetector
 
-__version__ = "1.0.0"
 __all__ = [
-    "EmotionAnalyzer",
-    "TrueEmotionModel",
-    "EmotionOutput",
-    "EmotionContext",
-    "EMOTION_DEFINITIONS",
-    "get_primary_emotions",
-    "get_complex_emotions",
-    "get_all_emotions",
+    # Main API
+    "TrueEmotionPro",
+    "create_analyzer",
+    # Schemas
+    "AnalyzeRequest",
+    "EmotionResult",
+    "EmotionData",
+    "ResponseData",
+    "ProfileData",
+    "EvolutionResult",
+    "SystemStats",
+    # Core
+    "RuleBasedEmotionDetector",
 ]
