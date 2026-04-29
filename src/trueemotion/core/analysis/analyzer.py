@@ -1,16 +1,18 @@
 """
-情感分析器门面 v1.13
+情感分析器门面 v1.14
 ====================
 整合检测器、记忆系统、响应生成器
 
-v1.13 新增:
+v1.14 新增:
+- LLM 驱动的语义情感检测
+- LLM 驱动的动态响应生成
+- 降级机制（LLM 不可用时自动切换到规则引擎）
 - 反讽检测
 - 上下文理解
-- 主动共情
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 from trueemotion.core.emotions.plutchik24 import (
@@ -29,6 +31,24 @@ from trueemotion.core.analysis.output import (
 from trueemotion.core.response.engine import HumanEmpathyEngine
 from trueemotion.memory.repository import MemoryRepository
 
+# LLM 组件（可选）
+try:
+    from trueemotion.core.llm import (
+        BaseLLMClient,
+        OpenAIClient,
+        LLMEmotionDetector,
+        LLMResponseGenerator,
+        FallbackManager,
+    )
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+    BaseLLMClient = None
+    OpenAIClient = None
+    LLMEmotionDetector = None
+    LLMResponseGenerator = None
+    FallbackManager = None
+
 
 @dataclass
 class AnalyzeOptions:
@@ -42,13 +62,18 @@ class AnalyzeOptions:
 
 class EmotionAnalyzer:
     """
-    情感分析器门面
+    情感分析器门面 v1.14
 
-    v1.13 新特性:
-    - 人性化情感检测（连续强度、复合情感）
-    - 更细腻的共情响应
+    v1.14 新特性:
+    - LLM 驱动的语义情感检测（更准确的复杂情感理解）
+    - LLM 驱动的动态响应生成（更个性化、口语化）
+    - 规则引擎降级保障（LLM 不可用时自动切换）
     - 上下文感知
     - 反讽检测
+
+    v1.13 特性:
+    - 人性化情感检测（连续强度、复合情感）
+    - 更细腻的共情响应
     - 主动共情
     """
 
@@ -57,13 +82,59 @@ class EmotionAnalyzer:
         memory_path: str = "./memory",
         detector: Optional[HumanEmotionDetector] = None,
         empathy_engine: Optional[HumanEmpathyEngine] = None,
+        llm_client: Optional[BaseLLMClient] = None,
+        enable_llm: bool = True,
     ):
-        self._detector = detector or HumanEmotionDetector()
-        self._empathy = empathy_engine or HumanEmpathyEngine()
+        """
+        初始化情感分析器
+
+        Args:
+            memory_path: 记忆存储路径
+            detector: 规则引擎检测器（LLM 不可用时使用）
+            empathy_engine: 规则引擎响应生成器（LLM 不可用时使用）
+            llm_client: LLM 客户端（可选，启用 LLM 功能）
+            enable_llm: 是否启用 LLM（当 llm_client 提供时生效）
+        """
+        # 规则引擎组件
+        self._rule_detector = detector or HumanEmotionDetector()
+        self._rule_empathy = empathy_engine or HumanEmpathyEngine()
+
+        # LLM 组件
+        self._llm_client = llm_client
+        self._enable_llm = enable_llm and LLM_AVAILABLE and llm_client is not None
+        self._llm_detector: Optional[LLMEmotionDetector] = None
+        self._llm_response_gen: Optional[LLMResponseGenerator] = None
+        self._fallback_manager: Optional[FallbackManager] = None
+
+        if self._enable_llm:
+            self._llm_detector = LLMEmotionDetector(llm_client)
+            self._llm_response_gen = LLMResponseGenerator(
+                llm_client,
+                fallback_engine=self._rule_empathy,
+            )
+            self._fallback_manager = FallbackManager()
+
+        # 当前使用的检测器（兼容属性）
+        self._detector = self._llm_detector if self._enable_llm else self._rule_detector
+        self._empathy = self._llm_response_gen if self._enable_llm else self._rule_empathy
+
+        # 其他组件
         self._memory = MemoryRepository(memory_path)
         self._irony = IronyDetector()
         self._context_analyzer = ContextualAnalyzer()
         self._conversation_contexts: Dict[str, ConversationContext] = {}
+
+    @property
+    def is_llm_enabled(self) -> bool:
+        """是否启用了 LLM"""
+        return self._enable_llm
+
+    @property
+    def is_llm_available(self) -> bool:
+        """LLM 是否可用"""
+        if not self._enable_llm:
+            return False
+        return self._llm_client is not None
 
     def analyze(self, text: str, options: Optional[AnalyzeOptions] = None) -> AnalysisResult:
         """
@@ -78,15 +149,35 @@ class EmotionAnalyzer:
         """
         opts = options or AnalyzeOptions(text=text)
 
-        # 1. 情感检测（人性化）
-        emotion_scores = self._detector.detect(text)
+        # 1. 情感检测（优先使用 LLM，失败则降级到规则引擎）
+        emotion_scores = self._detect_emotion(text)
 
         # 2. 获取主要情感和详细信息
         primary_emotion, primary_score = self._get_primary(emotion_scores)
-        vad = EMOTION_VAD.get(primary_emotion, (0.0, 0.0, 0.0))
+
+        # LLM 可能返回更详细的 VAD 信息
+        if self._enable_llm and hasattr(self, '_llm_detector') and self._llm_detector:
+            try:
+                llm_result = self._llm_detector.get_detailed_result(text)
+                vad = (
+                    llm_result.get("vad", {}).get("valence", 0.0),
+                    llm_result.get("vad", {}).get("arousal", 0.0),
+                    llm_result.get("vad", {}).get("dominance", 0.0),
+                )
+                explanation = llm_result.get("explanation")
+                confidence = llm_result.get("confidence", primary_score)
+            except Exception:
+                vad = EMOTION_VAD.get(primary_emotion, (0.0, 0.0, 0.0))
+                explanation = None
+                confidence = primary_score
+        else:
+            vad = EMOTION_VAD.get(primary_emotion, (0.0, 0.0, 0.0))
+            explanation = None
+            confidence = primary_score
+
         intensity_label = get_intensity_label(primary_score)
 
-        # 3. 反讽检测
+        # 3. 反讽检测（规则引擎，因为 LLM 可能已理解语义）
         irony_result = self._irony.detect(text, primary_emotion, primary_score)
         effective_emotion = irony_result.true_emotion or primary_emotion
         effective_intensity = primary_score
@@ -106,11 +197,13 @@ class EmotionAnalyzer:
         compound_emotions = {k: v for k, v in emotion_scores.items()
                            if self._is_compound_emotion(k)}
 
-        # 6. 生成共情回复
-        human_response = self._empathy.generate(
+        # 6. 生成共情回复（优先使用 LLM）
+        human_response = self._generate_response(
+            text=text,
             emotion=effective_emotion,
             intensity=effective_intensity,
             context=opts.context,
+            user_id=opts.user_id,
         )
 
         # 7. 如果需要追问，使用上下文分析结果
@@ -132,29 +225,34 @@ class EmotionAnalyzer:
             feedback=opts.feedback,
         )
 
-        # 10. 获取检测解释
-        explanation = self._detector.explain(text) if primary_score > 0.1 else None
+        # 10. 获取检测解释（如果 LLM 没有返回）
+        if explanation is None and primary_score > 0.1:
+            explanation = self._rule_detector.explain(text) if hasattr(self._rule_detector, 'explain') else None
 
         # 构建explanation加入反讽信息
         if irony_result.is_irony:
             if explanation is None:
                 explanation = {}
-            explanation["irony"] = {
-                "is_irony": True,
-                "surface_emotion": irony_result.surface_emotion,
-                "true_emotion": irony_result.true_emotion,
-                "confidence": irony_result.confidence,
-                "clues": irony_result.clues,
-            }
+            if isinstance(explanation, dict):
+                explanation["irony"] = {
+                    "is_irony": True,
+                    "surface_emotion": irony_result.surface_emotion,
+                    "true_emotion": irony_result.true_emotion,
+                    "confidence": irony_result.confidence,
+                    "clues": irony_result.clues,
+                }
+
+        # 确定引擎版本
+        engine_version = "llm-v1.14" if self._enable_llm else "rule-v1.14"
 
         return AnalysisResult(
-            version="1.11",
-            engine="humanized-v1.13",
+            version="1.14",
+            engine=engine_version,
             emotion=EmotionOutput(
                 primary=effective_emotion,
                 intensity=effective_intensity,
                 vad=vad,
-                confidence=primary_score,
+                confidence=confidence,
                 intensity_label=intensity_label,
                 all_emotions=emotion_scores,
                 compound_emotions=compound_emotions,
@@ -165,14 +263,80 @@ class EmotionAnalyzer:
                 empathy_type=human_response.empathy_type,
                 intensity_level=human_response.intensity_level,
                 follow_up=human_response.follow_up,
-                empathy_depth=human_response.tone,
-                tone=human_response.tone,
+                empathy_depth=getattr(human_response, 'tone', '温暖'),
+                tone=getattr(human_response, 'tone', '温暖'),
             ),
             user_profile=user_profile,
             context_used=opts.context is not None,
             emotion_mix=emotion_mix,
             explanation=explanation,
         )
+
+    def _detect_emotion(self, text: str) -> Dict[str, float]:
+        """
+        情感检测（自动降级）
+
+        优先使用 LLM，失败则降级到规则引擎
+        """
+        if not self._enable_llm or not self._llm_detector:
+            return self._rule_detector.detect(text)
+
+        try:
+            # 尝试使用 LLM 检测
+            return self._llm_detector.detect(text)
+        except Exception as e:
+            import logging
+            logging.warning(f"LLM detection failed, falling back to rules: {e}")
+            if self._fallback_manager:
+                self._fallback_manager.record_failure(e)
+            return self._rule_detector.detect(text)
+
+    def _generate_response(
+        self,
+        text: str,
+        emotion: str,
+        intensity: float,
+        context: Optional[str],
+        user_id: str,
+    ):
+        """
+        生成共情响应（自动降级）
+
+        优先使用 LLM，失败则降级到规则引擎
+        """
+        if not self._enable_llm or not self._llm_response_gen:
+            return self._rule_empathy.generate(
+                emotion=emotion,
+                intensity=intensity,
+                context=context,
+            )
+
+        try:
+            # 获取用户历史
+            profile = self._memory.get_user(user_id)
+            history = profile.emotional_history[-5:] if profile.emotional_history else []
+
+            return self._llm_response_gen.generate(
+                text=text,
+                emotion=emotion,
+                intensity=intensity,
+                context={"context": context} if context else None,
+                user_profile={
+                    "relationship_level": profile.relationship_level,
+                    "total_interactions": profile.total_interactions,
+                },
+                conversation_history=history,
+            )
+        except Exception as e:
+            import logging
+            logging.warning(f"LLM response generation failed, falling back to rules: {e}")
+            if self._fallback_manager:
+                self._fallback_manager.record_failure(e)
+            return self._rule_empathy.generate(
+                emotion=emotion,
+                intensity=intensity,
+                context=context,
+            )
 
     def _get_primary(self, scores: dict) -> tuple:
         """获取主要情感"""

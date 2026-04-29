@@ -1,8 +1,9 @@
 """
-TrueEmotion Pro v1.13 API
+TrueEmotion Pro v1.14 API
 人性化情感AI系统
 """
 
+import os
 from typing import Optional, List
 
 from trueemotion.core.analysis.analyzer import EmotionAnalyzer, AnalyzeOptions
@@ -10,22 +11,37 @@ from trueemotion.core.analysis.output import AnalysisResult
 from trueemotion.learning.evolution import EvolutionManager
 from trueemotion.memory.repository import MemoryRepository
 
+# LLM 组件（可选）
+try:
+    from trueemotion.core.llm import OpenAIClient, LLM_AVAILABLE
+except ImportError:
+    LLM_AVAILABLE = False
+    OpenAIClient = None
+
 
 class TrueEmotionPro:
     """
-    TrueEmotion Pro 主类
+    TrueEmotion Pro v1.14 主类
 
     使用方法:
         pro = TrueEmotionPro()
         result = pro.analyze("今天太开心了！")
         print(result.emotion.primary)  # joy
         print(result.human_response.text)  # "太为你高兴了！说说怎么回事！"
+
+    v1.14 新增:
+        pro = TrueEmotionPro(llm_provider="openai", api_key="sk-...")  # 启用 LLM
+        result = pro.analyze("今天被老板画饼了...")  # LLM 理解深层语义
     """
 
     def __init__(
         self,
         memory_path: str = "./memory",
         auto_learn: bool = True,
+        llm_provider: Optional[str] = None,
+        llm_model: str = "gpt-4o-mini",
+        api_key: Optional[str] = None,
+        enable_llm: bool = True,
     ):
         """
         初始化TrueEmotion Pro
@@ -33,15 +49,48 @@ class TrueEmotionPro:
         Args:
             memory_path: 记忆存储路径
             auto_learn: 是否自动学习用户反馈
+            llm_provider: LLM Provider ("openai" 或 None)
+            llm_model: LLM 模型名称
+            api_key: API Key (默认从环境变量获取)
+            enable_llm: 是否启用 LLM (当 llm_provider 提供时生效)
         """
         self._memory = MemoryRepository(memory_path)
+
+        # 初始化 LLM 客户端
+        llm_client = None
+        if LLM_AVAILABLE and llm_provider:
+            api_key = api_key or os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                llm_client = OpenAIClient(
+                    api_key=api_key,
+                    model=llm_model,
+                )
+                self._llm_client = llm_client
+            else:
+                import logging
+                logging.warning("LLM provider specified but no API key found")
+        else:
+            self._llm_client = None
+
         self._analyzer = EmotionAnalyzer(
             memory_path=memory_path,
             detector=None,
             empathy_engine=None,
+            llm_client=llm_client,
+            enable_llm=enable_llm and llm_client is not None,
         )
         self._evolution = EvolutionManager(self._memory)
         self._auto_learn = auto_learn
+
+    @property
+    def is_llm_enabled(self) -> bool:
+        """是否启用了 LLM"""
+        return self._analyzer.is_llm_enabled
+
+    @property
+    def is_llm_available(self) -> bool:
+        """LLM 是否可用"""
+        return self._analyzer.is_llm_available
 
     def analyze(
         self,
@@ -160,20 +209,31 @@ class TrueEmotionPro:
             dict: 系统统计信息
         """
         stats = self._memory.get_stats()
-        stats["version"] = "1.13"
+        stats["version"] = "1.14"
+        stats["engine"] = "llm-v1.14" if self.is_llm_enabled else "rule-v1.14"
         stats["evolution"] = self._evolution.get_evolution_status()
         return stats
 
 
 # 便捷函数
-def create_analyzer(memory_path: str = "./memory") -> TrueEmotionPro:
+def create_analyzer(
+    memory_path: str = "./memory",
+    llm_provider: Optional[str] = None,
+    **kwargs,
+) -> TrueEmotionPro:
     """
     创建TrueEmotion Pro实例
 
     Args:
         memory_path: 记忆存储路径
+        llm_provider: LLM Provider ("openai" 或 None)
+        **kwargs: 其他参数传递给 TrueEmotionPro
 
     Returns:
         TrueEmotionPro: 实例
     """
-    return TrueEmotionPro(memory_path=memory_path)
+    return TrueEmotionPro(
+        memory_path=memory_path,
+        llm_provider=llm_provider,
+        **kwargs,
+    )

@@ -1,7 +1,12 @@
 """
-TrueEmotion Pro v1.13 FastAPI Server
+TrueEmotion Pro v1.14 FastAPI Server
 ====================================
 人性化的情感AI Web服务
+
+v1.14 新特性:
+- LLM 驱动的语义情感检测
+- LLM 驱动的动态响应生成
+- 规则引擎降级保障
 """
 
 from contextlib import asynccontextmanager
@@ -64,21 +69,25 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TrueEmotion Pro API",
     description="""
-## TrueEmotion Pro v1.13 - 人性化情感AI系统
+## TrueEmotion Pro v1.14 - 人性化情感AI系统 (LLM驱动)
 
 让AI拥有像人类一样丰富、复杂、真实的情感。
 
 ### 核心功能
-- **情感分析**: 识别文本中的情感，包括复合情感
-- **共情回复**: 生成人性化的共情回复
+- **情感分析**: 识别文本中的情感，包括复合情感（LLM语义理解）
+- **共情回复**: 生成人性化的共情回复（LLM动态生成）
 - **持续学习**: 从交互中学习用户偏好
 - **情感进化**: 分析模式并优化回复策略
+
+### 引擎模式
+- **LLM模式**: 使用 GPT-4o-mini 进行深度语义理解和动态响应生成
+- **规则模式**: 传统规则引擎（当LLM不可用时自动降级）
 
 ### 情感类型
 支持35+种情感：joy, sadness, anger, fear, anticipation, surprise, disgust, trust
 以及复合情感如：bittersweet, hope_fear, love_hope 等
     """,
-    version="1.13",
+    version="1.14",
     lifespan=lifespan,
 )
 
@@ -105,8 +114,8 @@ async def root():
     """服务信息"""
     return JSONResponse({
         "name": "TrueEmotion Pro",
-        "version": "1.13",
-        "description": "人性化情感AI系统",
+        "version": "1.14",
+        "description": "人性化情感AI系统 (LLM驱动)",
         "docs": "/docs",
         "health": "/health",
         "demo": "/demo",
@@ -125,7 +134,11 @@ async def health_check():
     """健康检查"""
     if _pro_instance is None:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    return JSONResponse({"status": "healthy", "version": "1.13"})
+    return JSONResponse({
+        "status": "healthy",
+        "version": "1.14",
+        "engine": "llm-v1.14" if _pro_instance.is_llm_enabled else "rule-v1.14",
+    })
 
 
 @app.post("/analyze", tags=["Analysis"])
