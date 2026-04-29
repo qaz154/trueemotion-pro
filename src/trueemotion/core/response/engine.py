@@ -269,13 +269,14 @@ class HumanEmpathyEngine:
                 "明天会好的，我陪着你",
             ],
             "medium": [
-                "先休息一下",
-                "我陪着你",
-                "慢慢来",
+                "先休息一下，我陪着你",
+                "慢慢来，不着急",
+                "我在这里，不会走的",
             ],
             "low": [
-                "先冷静一下",
-                "会好的",
+                "先冷静一下，会好的",
+                "我陪着你，慢慢说",
+                "先深呼吸，我们一起想办法",
             ],
         },
         "confusion": {
@@ -322,6 +323,59 @@ class HumanEmpathyEngine:
             "low": [
                 "是吗",
                 "这样啊",
+            ],
+        },
+        "boredom": {
+            "high": [
+                "听起来很累啊，怎么了？",
+                "倦怠感来了，想休息一下吗？",
+                "我懂，有时候就是提不起劲",
+                "是不是最近太累了？",
+            ],
+            "medium": [
+                "听起来有点无聊啊",
+                "是不是提不起劲？",
+                "怎么了吗，想聊聊吗",
+            ],
+            "low": [
+                "嗯，是有点无聊",
+                "想找点事做？",
+                "怎么了，说说看",
+            ],
+        },
+        "loneliness": {
+            "high": [
+                "听起来有点孤单啊，我陪你说说话",
+                "一个人扛着很辛苦吧",
+                "我在这里，不会走的",
+                "想说什么就说，我听着",
+            ],
+            "medium": [
+                "有点寂寞是吧",
+                "想聊聊吗，我陪你",
+                "一个人不容易啊",
+            ],
+            "low": [
+                "嗯，觉得孤单了？",
+                "我在这里",
+                "想说话就说",
+            ],
+        },
+        "melancholy": {
+            "high": [
+                "听起来有点忧郁啊，怎么了？",
+                "心情低落的时候最难熬了",
+                "愿意说说吗，我陪你",
+            ],
+            "medium": [
+                "听起来有点低落",
+                "怎么了，想聊聊吗",
+                "我在这里听着",
+            ],
+            "low": [
+                "嗯，心情不太好？",
+                "想说说吗",
+                "我陪你",
             ],
         },
     }
@@ -431,27 +485,37 @@ class HumanEmpathyEngine:
         )
 
     def _get_intensity_level(self, intensity: float) -> str:
-        """获取强度等级"""
+        """获取强度等级
+
+        调整阈值以更好匹配实际情感强度:
+        - 强烈负面情感(如绝望)即使分数不高也应有更深入的回应
+        """
         if intensity >= 0.85:
             return "high"
         elif intensity >= 0.50:
             return "medium"
-        else:
+        elif intensity >= 0.20:
             return "low"
+        else:
+            return "minimal"
 
     def _get_base_response(self, emotion: str, intensity_level: str) -> str:
         """获取基础响应"""
         # 尝试从对应情感获取
         if emotion in self.EMPATHETIC_RESPONSES:
-            templates = self.EMPATHETIC_RESPONSES[emotion].get(
-                intensity_level,
-                self.EMPATHETIC_RESPONSES[emotion].get("low", ["嗯"])
+            templates = (
+                self.EMPATHETIC_RESPONSES[emotion].get(intensity_level) or
+                self.EMPATHETIC_RESPONSES[emotion].get("low") or
+                self.EMPATHETIC_RESPONSES[emotion].get("minimal") or
+                ["嗯"]
             )
             return random.choice(templates)
 
         # 回退到默认
-        templates = self.EMPATHETIC_RESPONSES.get("default", {}).get(
-            intensity_level, ["嗯"]
+        templates = (
+            self.EMPATHETIC_RESPONSES.get("default", {}).get(intensity_level) or
+            self.EMPATHETIC_RESPONSES.get("default", {}).get("low") or
+            ["嗯"]
         )
         return random.choice(templates)
 
@@ -520,6 +584,9 @@ class HumanEmpathyEngine:
             "despair": "陪伴支持",
             "confusion": "理清思路",
             "bittersweet": "理解复杂",
+            "boredom": "缓解倦怠",
+            "loneliness": "陪伴温暖",
+            "melancholy": "倾听陪伴",
         }
         return type_mapping.get(emotion, "共情回应")
 
