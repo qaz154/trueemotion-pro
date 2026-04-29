@@ -32,6 +32,12 @@ REINFORCEMENT_BOOST = 0.15  # 被使用时反馈强化量
 DECAY_RATE = 0.02  # 每周衰减率
 DECAY_THRESHOLD = 0.3  # 衰减阈值
 
+# 学习阈值
+SIMILARITY_THRESHOLD = 0.6  # 关键词重叠度阈值
+HIGH_FEEDBACK_THRESHOLD = 0.7  # 高反馈阈值
+GLOBAL_SYNC_THRESHOLD = 0.8  # 全局同步阈值
+MAX_KEYWORDS = 10  # 最大关键词数量
+
 
 @dataclass
 class LearnedPattern:
@@ -228,11 +234,47 @@ class MemoryRepository:
         Returns:
             LearnedPattern: 创建的模式
         """
-        now = datetime.now().isoformat()
-        keywords = self._extract_keywords(response)
-        context_hints = self._extract_context_hints(context or response)
+        # 1. 创建新模式对象
+        pattern = self._create_pattern(
+            user_id=user_id,
+            emotion=emotion,
+            response=response,
+            feedback=feedback,
+            context=context,
+        )
 
-        pattern = LearnedPattern(
+        # 2. 加载现有模式并查找相似模式
+        patterns = self._load_patterns(user_id)
+        existing_idx = self._find_similar_pattern_index(patterns, emotion, response, pattern.keywords)
+
+        # 3. 更新或添加模式
+        if existing_idx is not None:
+            pattern = self._update_existing_pattern(
+                patterns, existing_idx, pattern, feedback
+            )
+        else:
+            patterns.append(pattern)
+
+        # 4. 保存模式
+        self._save_patterns(user_id, patterns)
+
+        # 5. 高反馈同步到全局
+        if feedback >= GLOBAL_SYNC_THRESHOLD:
+            self._save_global_pattern(pattern)
+
+        return pattern
+
+    def _create_pattern(
+        self,
+        user_id: str,
+        emotion: str,
+        response: str,
+        feedback: float,
+        context: Optional[str],
+    ) -> LearnedPattern:
+        """创建新的学习模式"""
+        now = datetime.now().isoformat()
+        return LearnedPattern(
             user_id=user_id,
             emotion=emotion,
             response=response,
@@ -240,55 +282,57 @@ class MemoryRepository:
             times_used=1,
             last_used=now,
             created_at=now,
-            keywords=keywords,
-            context_hints=context_hints,
+            keywords=self._extract_keywords(response),
+            context_hints=self._extract_context_hints(context or response),
             decay_count=0,
         )
 
-        patterns = self._load_patterns(user_id)
-
-        # 检查是否已存在相似的模式（使用关键词匹配）
-        existing_idx = None
+    def _find_similar_pattern_index(
+        self,
+        patterns: List["LearnedPattern"],
+        emotion: str,
+        response: str,
+        keywords: List[str],
+    ) -> Optional[int]:
+        """查找相似模式的索引"""
         for i, p in enumerate(patterns):
             if p.emotion == emotion and p.response == response:
-                existing_idx = i
-                break
-            # 也检查关键词重叠度
-            elif p.emotion == emotion:
+                return i
+            # 检查关键词重叠度
+            if p.emotion == emotion:
                 overlap = self._calculate_keyword_overlap(p.keywords, keywords)
-                if overlap >= 0.6:  # 60%关键词重叠认为是相似模式
-                    existing_idx = i
-                    break
+                if overlap >= SIMILARITY_THRESHOLD:
+                    return i
+        return None
 
-        if existing_idx is not None:
-            # 更新现有模式 - 强化学习
-            patterns[existing_idx].times_used += 1
-            patterns[existing_idx].last_used = now
-            # 强化反馈：如果反馈高，增加该模式的权重
-            if feedback >= 0.7:
-                patterns[existing_idx].feedback = min(1.0,
-                    patterns[existing_idx].feedback + REINFORCEMENT_BOOST * feedback
-                )
-            else:
-                patterns[existing_idx].feedback = (
-                    patterns[existing_idx].feedback * 0.8 + feedback * 0.2
-                )
-            # 衰减计数重置
-            patterns[existing_idx].decay_count = 0
-            # 更新关键词
-            patterns[existing_idx].keywords = list(set(patterns[existing_idx].keywords + keywords))[:10]
-            pattern = patterns[existing_idx]
+    def _update_existing_pattern(
+        self,
+        patterns: List["LearnedPattern"],
+        existing_idx: int,
+        new_pattern: "LearnedPattern",
+        feedback: float,
+    ) -> "LearnedPattern":
+        """更新已存在的模式"""
+        existing = patterns[existing_idx]
+        now = datetime.now().isoformat()
+
+        # 更新使用次数和时间
+        existing.times_used += 1
+        existing.last_used = now
+
+        # 更新反馈分数
+        if feedback >= HIGH_FEEDBACK_THRESHOLD:
+            existing.feedback = min(1.0, existing.feedback + REINFORCEMENT_BOOST * feedback)
         else:
-            # 添加新模式
-            patterns.append(pattern)
+            existing.feedback = existing.feedback * 0.8 + feedback * 0.2
 
-        self._save_patterns(user_id, patterns)
+        # 重置衰减计数
+        existing.decay_count = 0
 
-        # 如果反馈高，同步到全局模式库
-        if feedback >= 0.8:
-            self._save_global_pattern(pattern)
+        # 合并关键词
+        existing.keywords = list(set(existing.keywords + new_pattern.keywords))[:MAX_KEYWORDS]
 
-        return pattern
+        return existing
 
     def _calculate_keyword_overlap(self, keywords1: List[str], keywords2: List[str]) -> float:
         """计算两个关键词列表的重叠度"""
@@ -430,8 +474,10 @@ class MemoryRepository:
                 with open(pattern_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 return [LearnedPattern(**p) for p in data]
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                import logging
+                logging.warning(f"Failed to load patterns for {user_id}: {e}")
+        return []
 
         return []
 

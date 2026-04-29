@@ -76,6 +76,9 @@ class EvolutionManager:
         all_patterns = self._memory.get_all_patterns()
         global_patterns = self._memory.get_global_patterns()
 
+        # 缓存计算结果
+        total_patterns_analyzed = sum(len(p) for p in all_patterns.values())
+
         # 按情感分组
         emotion_groups: dict[str, list[LearnedPattern]] = {}
         for user_id, patterns in all_patterns.items():
@@ -95,13 +98,16 @@ class EvolutionManager:
             if len(high_feedback) >= self.MIN_PATTERNS:
                 # 提取关键词
                 keywords = self._extract_keywords_advanced(high_feedback)
+
+                # 缓存计算
+                total_usage = sum(p.times_used for p in high_feedback)
                 avg_feedback = sum(p.feedback for p in high_feedback) / len(high_feedback)
 
                 # 多维度置信度计算
                 confidence = self._calculate_confidence(
                     pattern_count=len(high_feedback),
                     avg_feedback=avg_feedback,
-                    total_usage=sum(p.times_used for p in high_feedback),
+                    total_usage=total_usage,
                 )
 
                 if confidence >= self.MIN_CONFIDENCE:
@@ -111,7 +117,7 @@ class EvolutionManager:
                         source_patterns=len(high_feedback),
                         avg_feedback=round(avg_feedback, 3),
                         confidence=round(confidence, 3),
-                        usage_count=sum(p.times_used for p in high_feedback),
+                        usage_count=total_usage,
                         created_at=datetime.now().isoformat(),
                     )
                     evolved_rules.append(rule)
@@ -122,18 +128,21 @@ class EvolutionManager:
         # 按置信度排序
         evolved_rules.sort(key=lambda r: r.confidence, reverse=True)
 
+        # 计算平均置信度
+        avg_confidence = sum(r.confidence for r in evolved_rules) / len(evolved_rules) if evolved_rules else 0
+
         # 记录进化历史
         history = EvolutionHistory(
             timestamp=datetime.now().isoformat(),
-            patterns_analyzed=sum(len(p) for p in all_patterns.values()),
+            patterns_analyzed=total_patterns_analyzed,
             rules_evolved=len(evolved_rules),
-            avg_confidence=sum(r.confidence for r in evolved_rules) / len(evolved_rules) if evolved_rules else 0,
+            avg_confidence=avg_confidence,
             changes=changes,
         )
         self._evolution_history.append(history)
 
         return {
-            "total_patterns_analyzed": sum(len(p) for p in all_patterns.values()),
+            "total_patterns_analyzed": total_patterns_analyzed,
             "emotions_with_patterns": len(emotion_groups),
             "evolved_rules": [
                 {
