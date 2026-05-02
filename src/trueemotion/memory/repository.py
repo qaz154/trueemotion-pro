@@ -198,13 +198,27 @@ class MemoryRepository:
 
         return hints[:5]  # 最多5个提示
 
+    def _validate_user_id(self, user_id: str) -> str:
+        """验证用户ID安全性，防止路径遍历攻击"""
+        if not re.match(r'^[a-zA-Z0-9_\-一-鿿]{1,128}$', user_id):
+            raise ValueError(f"Invalid user_id: {user_id!r}")
+        return user_id
+
     def _get_user_file(self, user_id: str) -> Path:
         """获取用户文件路径"""
-        return self._users_dir / f"{user_id}.json"
+        user_id = self._validate_user_id(user_id)
+        path = self._users_dir / f"{user_id}.json"
+        if not path.resolve().is_relative_to(self._users_dir.resolve()):
+            raise ValueError("Path traversal detected")
+        return path
 
     def _get_pattern_file(self, user_id: str) -> Path:
         """获取模式文件路径"""
-        return self._patterns_dir / f"{user_id}_patterns.json"
+        user_id = self._validate_user_id(user_id)
+        path = self._patterns_dir / f"{user_id}_patterns.json"
+        if not path.resolve().is_relative_to(self._patterns_dir.resolve()):
+            raise ValueError("Path traversal detected")
+        return path
 
     def get_user(self, user_id: str) -> UserProfile:
         """
@@ -380,39 +394,40 @@ class MemoryRepository:
     def _save_global_pattern(self, pattern: LearnedPattern) -> None:
         """保存高反馈模式到全局模式库"""
         global_file = self._global_patterns_dir / f"{pattern.emotion}_global.json"
-        global_patterns = []
+        lock = self._get_lock(str(global_file))
+        with lock:
+            global_patterns = []
 
-        if global_file.exists():
-            try:
-                with open(global_file, "r", encoding="utf-8") as f:
-                    global_patterns = json.load(f)
-            except (json.JSONDecodeError, TypeError):
-                pass
+            if global_file.exists():
+                try:
+                    with open(global_file, "r", encoding="utf-8") as f:
+                        global_patterns = json.load(f)
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
-        # 检查是否已存在
-        existing = None
-        for i, p in enumerate(global_patterns):
-            if p.get("response") == pattern.response:
-                existing = i
-                break
+            # 检查是否已存在
+            existing = None
+            for i, p in enumerate(global_patterns):
+                if p.get("response") == pattern.response:
+                    existing = i
+                    break
 
-        if existing is not None:
-            global_patterns[existing]["times_used"] += 1
-            global_patterns[existing]["feedback"] = max(
-                global_patterns[existing]["feedback"],
-                pattern.feedback
-            )
-        else:
-            global_patterns.append({
-                "emotion": pattern.emotion,
-                "response": pattern.response,
-                "feedback": pattern.feedback,
-                "times_used": 1,
-                "keywords": pattern.keywords,
-            })
+            if existing is not None:
+                global_patterns[existing]["times_used"] += 1
+                global_patterns[existing]["feedback"] = max(
+                    global_patterns[existing]["feedback"],
+                    pattern.feedback
+                )
+            else:
+                global_patterns.append({
+                    "emotion": pattern.emotion,
+                    "response": pattern.response,
+                    "feedback": pattern.feedback,
+                    "times_used": 1,
+                    "keywords": pattern.keywords,
+                })
 
-        with open(global_file, "w", encoding="utf-8") as f:
-            json.dump(global_patterns, f, ensure_ascii=False, indent=2)
+            self._atomic_write(global_file, json.dumps(global_patterns, ensure_ascii=False, indent=2))
 
     def get_global_patterns(self, emotion: Optional[str] = None) -> List[Dict]:
         """获取全局模式库中的模式"""

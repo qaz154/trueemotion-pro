@@ -156,8 +156,14 @@ class ProactiveEmpathyEngine:
                 "high"
             )
 
-        # 4. 检查时间相关关怀
+        # 4. 检查时间相关关怀（需检查主动消息冷却期）
+        if self._last_proactive_time:
+            hours_since_proactive = (datetime.now() - self._last_proactive_time).total_seconds() / 3600
+            if hours_since_proactive < self._proactive_cooldown_hours:
+                return ProactiveResponse(False, None, "主动消息冷却期内", "low")
+
         if 20 <= current_hour < 23:
+            self.record_proactive()
             return ProactiveResponse(
                 True,
                 self.CARE_TRIGGERS["time_based"]["evening"]["message"],
@@ -165,6 +171,7 @@ class ProactiveEmpathyEngine:
                 "low"
             )
         elif 23 <= current_hour or current_hour < 6:
+            self.record_proactive()
             return ProactiveResponse(
                 True,
                 self.CARE_TRIGGERS["time_based"]["late_night"]["message"],

@@ -5,6 +5,7 @@ LLM 情感检测器 v1.15
 """
 
 import logging
+import threading
 import time
 from typing import Dict, Optional, Any, List, Tuple
 
@@ -33,8 +34,16 @@ class LLMEmotionDetector:
             cache_ttl: 缓存 TTL（秒），默认 1 小时
         """
         self._llm = llm_client
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: Dict[str, Tuple[Dict[str, float], float]] = {}
         self._cache_ttl = cache_ttl
+        self._cache_lock = threading.Lock()
+
+    def _evict_cache(self) -> None:
+        """淘汰旧缓存条目（调用时需持有锁）"""
+        if len(self._cache) > 10000:
+            sorted_keys = sorted(self._cache.keys(), key=lambda k: self._cache[k][1])
+            for key in sorted_keys[:5000]:
+                del self._cache[key]
 
     def detect(self, text: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
         """
@@ -48,14 +57,13 @@ class LLMEmotionDetector:
             Dict[str, float]: 情感及其强度分数
         """
         # 检查缓存
-        cache_key = text
-        if cache_key in self._cache:
-            cached_data, cached_time = self._cache[cache_key]
-            if time.time() - cached_time > self._cache_ttl:
-                del self._cache[cache_key]
-            else:
-                logger.debug(f"Cache hit for: {text[:30]}...")
-                return cached_data
+        with self._cache_lock:
+            if text in self._cache:
+                cached_data, cached_time = self._cache[text]
+                if time.time() - cached_time <= self._cache_ttl:
+                    logger.debug(f"Cache hit for: {text[:30]}...")
+                    return cached_data
+                del self._cache[text]
 
         try:
             result = self._llm.detect_emotion(text, context)
@@ -68,13 +76,9 @@ class LLMEmotionDetector:
                 emotions[compound["name"]] = compound["intensity"]
 
             # 缓存结果
-            self._cache[cache_key] = (emotions, time.time())
-
-            # 缓存大小限制
-            if len(self._cache) > 10000:
-                sorted_keys = sorted(self._cache.keys(), key=lambda k: self._cache[k][1])
-                for key in sorted_keys[:5000]:
-                    del self._cache[key]
+            with self._cache_lock:
+                self._cache[text] = (emotions, time.time())
+                self._evict_cache()
 
             return emotions
 
@@ -120,17 +124,18 @@ class LLMEmotionDetector:
             Dict: 包含所有检测信息的完整结果
         """
         cache_key = f"_detailed_{text}"
-        if cache_key in self._cache:
-            cached_data, cached_time = self._cache[cache_key]
-            if time.time() - cached_time > self._cache_ttl:
+        with self._cache_lock:
+            if cache_key in self._cache:
+                cached_data, cached_time = self._cache[cache_key]
+                if time.time() - cached_time <= self._cache_ttl:
+                    return cached_data
                 del self._cache[cache_key]
-            else:
-                return cached_data
 
         result = self._llm.detect_emotion(text, context)
 
-        # 缓存
-        self._cache[cache_key] = (result, time.time())
+        with self._cache_lock:
+            self._cache[cache_key] = (result, time.time())
+            self._evict_cache()
 
         return result
 
@@ -158,5 +163,6 @@ class LLMEmotionDetector:
 
     def clear_cache(self) -> None:
         """清除缓存"""
-        self._cache.clear()
+        with self._cache_lock:
+            self._cache.clear()
         logger.debug("Emotion detection cache cleared")

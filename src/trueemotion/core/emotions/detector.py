@@ -262,9 +262,12 @@ class HumanEmotionDetector:
             start = max(0, idx - 60)
             before_keyword = text[start:idx]
 
-            # 检查是否有例外词组（如"无敌"）
+            # 检查是否有例外词组（如"无敌"），仅在上下文窗口内
+            context_start = max(0, idx - 10)
+            context_end = min(len(text), idx + len(keyword) + 10)
+            context_window = text[context_start:context_end]
             for exception in self.NEGATION_EXCEPTIONS:
-                if exception in before_keyword or exception in text:
+                if exception in before_keyword or exception in context_window:
                     return False
 
             for neg in self.NEGATIONS:
@@ -344,14 +347,26 @@ class HumanEmotionDetector:
         elif context.sentence_length > 50:
             score *= 0.9
 
-        # 6. 强化词
-        matched_multipliers = []
+        # 6. 强化词（分别处理增强和减弱，取最后匹配的）
+        boosters = []
+        diminishers = []
         for word, multiplier in self.INTENSIFIERS.items():
             if word in text:
-                matched_multipliers.append(multiplier)
-        if matched_multipliers:
-            best = max(matched_multipliers, key=lambda m: abs(m - 1.0))
-            score *= best
+                if multiplier >= 1.0:
+                    boosters.append(multiplier)
+                else:
+                    diminishers.append(multiplier)
+        if boosters and diminishers:
+            # 两者都有时取最后出现的（中文语法中最近的修饰词优先）
+            score *= diminishers[-1] if text.rfind(
+                next(w for w, m in self.INTENSIFIERS.items() if m == diminishers[-1])
+            ) > text.rfind(
+                next(w for w, m in self.INTENSIFIERS.items() if m == boosters[-1])
+            ) else boosters[-1]
+        elif boosters:
+            score *= max(boosters)
+        elif diminishers:
+            score *= min(diminishers)
 
         # 7. 语气词
         for particle, multiplier in self.PARTICLES.items():

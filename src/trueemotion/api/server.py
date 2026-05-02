@@ -10,16 +10,19 @@ v1.15 新特性:
 - 响应引擎优化
 """
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from trueemotion import TrueEmotionPro
+
+logger = logging.getLogger(__name__)
 
 
 def _serialize_result(result) -> dict:
@@ -97,17 +100,20 @@ class BatchAnalyzeRequest(BaseModel):
     user_id: str = Field(default="default", description="用户ID")
 
 
-# Global instance
-_pro_instance: Optional[TrueEmotionPro] = None
+def _get_pro(request: Request) -> TrueEmotionPro:
+    """从 app.state 获取实例"""
+    pro = getattr(request.app.state, "pro", None)
+    if pro is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    return pro
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    global _pro_instance
-    _pro_instance = TrueEmotionPro()
+    app.state.pro = TrueEmotionPro()
     yield
-    _pro_instance = None
+    app.state.pro = None
 
 
 # Create FastAPI app
@@ -175,19 +181,18 @@ async def demo_page():
 
 
 @app.get("/health", tags=["Info"])
-async def health_check():
+async def health_check(request: Request):
     """健康检查"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
     return JSONResponse({
         "status": "healthy",
         "version": "1.15",
-        "engine": "llm-v1.15" if _pro_instance.is_llm_enabled else "rule-v1.15",
+        "engine": "llm-v1.15" if pro.is_llm_enabled else "rule-v1.15",
     })
 
 
 @app.post("/analyze", tags=["Analysis"])
-async def analyze_text(request: AnalyzeRequest):
+async def analyze_text(body: AnalyzeRequest, request: Request):
     """
     分析文本情感并生成共情回复
 
@@ -198,17 +203,16 @@ async def analyze_text(request: AnalyzeRequest):
     - **response**: AI回复（用于学习）
     - **feedback**: 用户反馈 0-1
     """
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        result = _pro_instance.analyze(
-            text=request.text,
-            context=request.context,
-            learn=request.learn,
-            response=request.response,
-            feedback=request.feedback,
-            user_id=request.user_id,
+        result = pro.analyze(
+            text=body.text,
+            context=body.context,
+            learn=body.learn,
+            response=body.response,
+            feedback=body.feedback,
+            user_id=body.user_id,
         )
 
         data = _serialize_result(result)
@@ -219,24 +223,24 @@ async def analyze_text(request: AnalyzeRequest):
             "data": data,
         })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /analyze endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/analyze/batch", tags=["Analysis"])
-async def analyze_batch_text(request: BatchAnalyzeRequest):
+async def analyze_batch_text(body: BatchAnalyzeRequest, request: Request):
     """
     批量分析文本情感
 
     - **texts**: 待分析的文本列表（最多100条）
     - **user_id**: 用户ID（用于记忆和学习）
     """
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        results = _pro_instance.analyze_batch(
-            texts=request.texts,
-            user_id=request.user_id,
+        results = pro.analyze_batch(
+            texts=body.texts,
+            user_id=body.user_id,
         )
 
         return JSONResponse({
@@ -244,88 +248,89 @@ async def analyze_batch_text(request: BatchAnalyzeRequest):
             "data": [_serialize_result(result) for result in results],
         })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /analyze/batch endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/profile/{user_id}", tags=["User"])
-async def get_user_profile(user_id: str):
+async def get_user_profile(user_id: str, request: Request):
     """获取用户画像"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        profile = _pro_instance.get_user_profile(user_id)
+        profile = pro.get_user_profile(user_id)
         return JSONResponse({"success": True, "data": profile})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /profile/%s endpoint", user_id)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/memory/status", tags=["Memory"])
-async def get_memory_status():
+async def get_memory_status(request: Request):
     """获取记忆状态"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        status = _pro_instance.get_memory_status()
+        status = pro.get_memory_status()
         return JSONResponse({"success": True, "data": status})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /memory/status endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/memory/reset", tags=["Memory"])
-async def reset_user_memory(request: ResetRequest):
+async def reset_user_memory(body: ResetRequest, request: Request):
     """重置用户记忆"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        _pro_instance.reset_user(request.user_id)
+        pro.reset_user(body.user_id)
         return JSONResponse({
             "success": True,
-            "message": f"用户 {request.user_id} 的记忆已重置",
+            "message": f"用户 {body.user_id} 的记忆已重置",
         })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /memory/reset endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/evolve", tags=["Evolution"])
-async def trigger_evolution():
+async def trigger_evolution(request: Request):
     """执行情感进化"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        result = _pro_instance.evolve()
+        result = pro.evolve()
         return JSONResponse({"success": True, "data": result})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /evolve endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/evolution/status", tags=["Evolution"])
-async def get_evolution_status():
+async def get_evolution_status(request: Request):
     """获取进化状态"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        status = _pro_instance.get_evolution_status()
+        status = pro.get_evolution_status()
         return JSONResponse({"success": True, "data": status})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /evolution/status endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/stats", tags=["Info"])
-async def get_system_stats():
+async def get_system_stats(request: Request):
     """获取系统统计"""
-    if _pro_instance is None:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    pro = _get_pro(request)
 
     try:
-        stats = _pro_instance.get_stats()
+        stats = pro.get_stats()
         return JSONResponse({"success": True, "data": stats})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in /stats endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == "__main__":

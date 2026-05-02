@@ -26,13 +26,13 @@ def analyze_text(pro: TrueEmotionPro, text: str, user_id: str = "default"):
     """分析单条文本"""
     result = pro.analyze(text, user_id=user_id)
 
-    print(f"\n📝 输入: {text}")
-    print(f"   ├─ 主要情感: {result.emotion.primary}")
-    print(f"   ├─ 强度: {result.emotion.intensity:.2f}")
-    print(f"   ├─ VAD: ({result.emotion.vad[0]:.2f}, {result.emotion.vad[1]:.2f}, {result.emotion.vad[2]:.2f})")
-    print(f"   ├─ 置信度: {result.emotion.confidence:.2f}")
-    print(f"   ├─ 共情类型: {result.human_response.empathy_type}")
-    print(f"   └─ 回复: {result.human_response.text}")
+    print(f"\n[输入] {text}")
+    print(f"   |-- 主要情感: {result.emotion.primary}")
+    print(f"   |-- 强度: {result.emotion.intensity:.2f}")
+    print(f"   |-- VAD: ({result.emotion.vad[0]:.2f}, {result.emotion.vad[1]:.2f}, {result.emotion.vad[2]:.2f})")
+    print(f"   |-- 置信度: {result.emotion.confidence:.2f}")
+    print(f"   |-- 共情类型: {result.human_response.empathy_type}")
+    print(f"   +-- 回复: {result.human_response.text}")
 
     if result.human_response.follow_up:
         print(f"       追问: {result.human_response.follow_up}")
@@ -41,7 +41,7 @@ def analyze_text(pro: TrueEmotionPro, text: str, user_id: str = "default"):
 def demo_analysis():
     """演示情感分析"""
     print("\n" + "=" * 70)
-    print("🎭 情感分析演示")
+    print("[演示] 情感分析演示")
     print("=" * 70)
 
     pro = TrueEmotionPro()
@@ -64,13 +64,13 @@ def demo_analysis():
 def demo_learning():
     """演示学习功能"""
     print("\n" + "=" * 70)
-    print("🧠 持续学习演示")
+    print("[演示] 持续学习演示")
     print("=" * 70)
 
     pro = TrueEmotionPro()
 
     # 学习新模式
-    print("\n📝 学习新模式...")
+    print("\n[学习] 学习新模式...")
 
     pro.analyze(
         "工作好累啊，老加班",
@@ -97,28 +97,28 @@ def demo_learning():
     )
 
     # 查看学习结果
-    print("\n📊 用户画像:")
+    print("\n[画像] 用户画像:")
     profile = pro.get_user_profile("learn_demo")
     for key, value in profile.items():
-        print(f"   ├─ {key}: {value}")
+        print(f"   |-- {key}: {value}")
 
     # 查看记忆状态
-    print("\n💾 记忆状态:")
+    print("\n[记忆] 记忆状态:")
     status = pro.get_memory_status()
     for key, value in status.items():
-        print(f"   ├─ {key}: {value}")
+        print(f"   |-- {key}: {value}")
 
 
 def demo_evolve():
     """演示进化功能"""
     print("\n" + "=" * 70)
-    print("🔄 进化系统演示")
+    print("[演示] 进化系统演示")
     print("=" * 70)
 
     pro = TrueEmotionPro()
 
     # 先学习一些模式
-    print("\n📝 学习新模式...")
+    print("\n[学习] 学习新模式...")
     for i in range(5):
         pro.analyze(
             "工作好累啊",
@@ -129,23 +129,23 @@ def demo_evolve():
         )
 
     # 执行进化
-    print("\n🔄 执行进化...")
+    print("\n[进化] 执行进化...")
     result = pro.evolve()
-    print(f"   ├─ 分析模式数: {result['total_patterns_analyzed']}")
-    print(f"   ├─ 涉及情感数: {result['emotions_with_patterns']}")
-    print(f"   └─ 进化规则数: {len(result['evolved_rules'])}")
+    print(f"   |-- 分析模式数: {result.get('total_patterns_analyzed', 0)}")
+    print(f"   |-- 涉及情感数: {result.get('emotions_with_patterns', 0)}")
+    print(f"   +-- 进化规则数: {len(result.get('evolved_rules', []))}")
 
     # 查看进化状态
-    print("\n📊 进化状态:")
+    print("\n[状态] 进化状态:")
     status = pro.get_evolution_status()
     for key, value in status.items():
-        print(f"   ├─ {key}: {value}")
+        print(f"   |-- {key}: {value}")
 
 
 def run_tests():
     """运行内置测试"""
     print("\n" + "=" * 70)
-    print("🧪 情感识别测试")
+    print("[测试] 情感识别测试")
     print("=" * 70)
 
     pro = TrueEmotionPro()
@@ -165,7 +165,7 @@ def run_tests():
     for text, expected in test_cases:
         result = pro.analyze(text)
         pred = result.emotion.primary
-        status = "✓" if pred == expected else "✗"
+        status = "[OK]" if pred == expected else "[FAIL]"
         if pred == expected:
             correct += 1
         print(f"   {status} \"{text[:15]}\" → 期望:{expected}, 预测:{pred}")
@@ -214,12 +214,12 @@ def main():
 
     elif args.stats:
         pro = TrueEmotionPro()
-        print("\n📊 系统统计:")
+        print("\n[统计] 系统统计:")
         stats = pro.get_stats()
         for key, value in stats.items():
-            print(f"   ├─ {key}: {value}")
+            print(f"   |-- {key}: {value}")
 
-    print("\n✨ 完成!")
+    print("\n[完成]")
 
 
 if __name__ == "__main__":

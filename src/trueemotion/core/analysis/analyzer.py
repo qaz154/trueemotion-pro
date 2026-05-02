@@ -216,7 +216,14 @@ class EmotionAnalyzer:
             effective_emotion, effective_intensity, context_result
         )
         if follow_up_suggestion and not human_response.follow_up:
-            human_response.follow_up = follow_up_suggestion
+            human_response = HumanResponse(
+                text=human_response.text,
+                empathy_type=human_response.empathy_type,
+                intensity_level=human_response.intensity_level,
+                follow_up=follow_up_suggestion,
+                empathy_depth=human_response.empathy_depth,
+                tone=human_response.tone,
+            )
 
         # 8. 构建情感混合描述
         emotion_mix = self._build_emotion_mix(emotion_scores)
@@ -438,12 +445,19 @@ class EmotionAnalyzer:
         return self._memory.get_user(user_id)
 
     def evolve(self) -> dict:
-        """执行进化"""
+        """
+        执行进化分析
+
+        注意: 实际进化由 TrueEmotionPro.evolve() 通过 EvolutionManager 执行
+        此方法仅返回当前模式统计，供内部使用
+        """
         patterns = self._memory.get_all_patterns()
+        total = sum(len(v) for v in patterns.values()) if isinstance(patterns, dict) else len(patterns)
         return {
-            "total_patterns": len(patterns),
-            "patterns": patterns,
-            "status": "evolved",
+            "total_patterns": total,
+            "emotions_with_patterns": list(patterns.keys()) if isinstance(patterns, dict) else [],
+            "evolved_rules": 0,
+            "status": "use_trueemotion_pro_evolve",
         }
 
     def get_stats(self) -> dict:
