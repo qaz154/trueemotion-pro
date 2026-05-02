@@ -1,5 +1,5 @@
 """
-性格与关系系统 v1.13
+性格与关系系统 v1.15
 ====================
 让AI拥有独特的性格和关系感知能力
 
@@ -282,7 +282,7 @@ class PersonalityEngine:
 
         # 内敛性格适当收敛表达
         if self.personality.extroversion < 0.4:
-            if "！！" in response or "！！" in response:
-                response = response.replace("！！", "！")
+            if "！！" in response or "!!" in response:
+                response = response.replace("！！", "！").replace("!!", "！")
 
         return response

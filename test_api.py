@@ -1,9 +1,6 @@
 """
-TrueEmotion Pro v1.11 API 测试
+TrueEmotion Pro v1.15 API 测试
 """
-import sys
-sys.path.insert(0, 'src')
-
 from trueemotion import TrueEmotionPro
 
 
@@ -149,7 +146,7 @@ def test_empathy_response():
 def run_all_tests():
     """运行所有测试"""
     print("=" * 60)
-    print("TrueEmotion Pro v1.11 人性化情感系统测试")
+    print("TrueEmotion Pro v1.15 人性化情感系统测试")
     print("=" * 60)
 
     tests = [

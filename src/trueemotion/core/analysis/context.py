@@ -1,5 +1,5 @@
 """
-上下文理解系统 v1.13
+上下文理解系统 v1.15
 ====================
 让AI能感知对话历史，实现情感连贯
 
@@ -112,7 +112,7 @@ class ConversationContext:
             "trend": trend.direction,
             "trend_delta": round(trend.delta, 3),
             "main_change": trend.dominant_change,
-            "session_duration_seconds": (datetime.now() - self.session_start).seconds,
+            "session_duration_seconds": (datetime.now() - self.session_start).total_seconds(),
         }
 
     def was_emotion_mentioned_recently(self, emotion: str, within: int = 3) -> bool:
@@ -152,7 +152,7 @@ class ContextualAnalyzer:
         # 负面转正面
         ("sadness", "joy"): "improving",
         ("fear", "relief"): "recovering",
-        ("anger", "calm"): "cooling_down",
+        ("anger", "acceptance"): "cooling_down",
         # 持续正面
         ("joy", "joy"): "sustained_positive",
         ("love", "joy"): "deepening_positive",

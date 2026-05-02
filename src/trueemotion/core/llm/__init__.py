@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.14 - LLM 驱动模块
+TrueEmotion Pro v1.15 - LLM 驱动模块
 """
 
 from trueemotion.core.llm.base import BaseLLMClient, LLMResponse, LLMError

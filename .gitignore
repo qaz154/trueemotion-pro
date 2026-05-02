@@ -46,3 +46,18 @@ memory/users/
 memory/patterns/
 memory/global_patterns/
 *.json.bak
+
+# Environment
+.env
+.env.*
+
+# ML models
+*.pt
+*.pth
+*.onnx
+
+# Test artifacts
+test_memory/
+.pytest_cache/
+htmlcov/
+.coverage

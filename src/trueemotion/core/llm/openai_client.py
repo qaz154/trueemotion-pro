@@ -1,5 +1,5 @@
 """
-OpenAI LLM 客户端 v1.14
+OpenAI LLM 客户端 v1.15
 =======================
 基于 OpenAI API 的 LLM 客户端实现
 """
@@ -49,6 +49,8 @@ class OpenAIClient(BaseLLMClient):
         )
         self._timeout = timeout
         self._max_retries = max_retries
+        self._last_check_time = None
+        self._last_check_result = False
 
         if not self._api_key:
             raise LLMError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
@@ -197,14 +199,18 @@ class OpenAIClient(BaseLLMClient):
         # 根据情感强度调整 temperature
         temp = 0.9 if intensity > 0.7 else (0.7 if intensity > 0.4 else 0.6)
 
-        response = self.complete(system_prompt + "\n" + user_prompt, temperature=temp, max_tokens=200)
+        response = self.complete(system_prompt + "\n" + user_prompt, temperature=temp, max_tokens=500)
 
         return response.content.strip()
 
     def is_available(self) -> bool:
         """检查 LLM 服务是否可用"""
+        if self._last_check_time is not None and time.time() - self._last_check_time < 60:
+            return self._last_check_result
         try:
             self.complete("hello", temperature=0.1, max_tokens=5)
-            return True
+            self._last_check_result = True
         except LLMError:
-            return False
+            self._last_check_result = False
+        self._last_check_time = time.time()
+        return self._last_check_result

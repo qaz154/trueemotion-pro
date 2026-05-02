@@ -1,11 +1,12 @@
 """
-TrueEmotion Pro v1.14 API
+TrueEmotion Pro v1.15 API
 人性化情感AI系统
 """
 
 import os
 from typing import Optional, List
 
+from trueemotion import __version__
 from trueemotion.core.analysis.analyzer import EmotionAnalyzer, AnalyzeOptions
 from trueemotion.core.analysis.output import AnalysisResult
 from trueemotion.learning.evolution import EvolutionManager
@@ -21,7 +22,7 @@ except ImportError:
 
 class TrueEmotionPro:
     """
-    TrueEmotion Pro v1.14 主类
+    TrueEmotion Pro v1.15 主类
 
     使用方法:
         pro = TrueEmotionPro()
@@ -29,7 +30,7 @@ class TrueEmotionPro:
         print(result.emotion.primary)  # joy
         print(result.human_response.text)  # "太为你高兴了！说说怎么回事！"
 
-    v1.14 新增:
+    v1.15 新增:
         pro = TrueEmotionPro(llm_provider="openai", api_key="sk-...")  # 启用 LLM
         result = pro.analyze("今天被老板画饼了...")  # LLM 理解深层语义
     """
@@ -209,8 +210,8 @@ class TrueEmotionPro:
             dict: 系统统计信息
         """
         stats = self._memory.get_stats()
-        stats["version"] = "1.14"
-        stats["engine"] = "llm-v1.14" if self.is_llm_enabled else "rule-v1.14"
+        stats["version"] = __version__
+        stats["engine"] = f"llm-v{__version__}" if self.is_llm_enabled else f"rule-v{__version__}"
         stats["evolution"] = self._evolution.get_evolution_status()
         return stats
 

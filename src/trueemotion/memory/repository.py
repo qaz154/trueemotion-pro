@@ -1,8 +1,8 @@
 """
-记忆仓库 v1.13
+记忆仓库 v1.15
 使用Repository模式管理用户记忆和学习模式
 
-v1.13 增强:
+v1.15 增强:
 - 智能关键词提取
 - 记忆强化衰减机制
 - 语义相似度匹配
@@ -12,6 +12,8 @@ v1.13 增强:
 import json
 import os
 import re
+import tempfile
+import threading
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
@@ -23,8 +25,10 @@ STOP_WORDS = {
     "的", "了", "啊", "吧", "呢", "呀", "哦", "嗯", "噢", "唉",
     "我", "你", "他", "她", "它", "们", "是", "在", "有", "和",
     "也", "都", "就", "要", "会", "能", "可以", "什么", "怎么",
-    "这个", "那个", "一个", "一些", "什么", "为什么", "吗", "呢",
+    "这个", "那个", "一个", "一些", "为什么", "吗",
     "好", "很", "太", "真", "非常", "特别", "比较",
+    "还是", "但是", "因为", "所以", "如果", "虽然", "不过",
+    "然后", "接着", "于是", "而且", "或者", "以及",
 }
 
 # 强化衰减参数
@@ -73,7 +77,7 @@ class UserProfile:
 
 class MemoryRepository:
     """
-    记忆仓库 v1.13
+    记忆仓库 v1.15
 
     使用JSON文件存储，支持用户画像和学习模式管理
     特性:
@@ -93,6 +97,8 @@ class MemoryRepository:
         self._users_dir = self._base_path / "users"
         self._patterns_dir = self._base_path / "patterns"
         self._global_patterns_dir = self._base_path / "global_patterns"
+        self._locks: Dict[str, threading.Lock] = {}
+        self._locks_lock = threading.Lock()
         self._ensure_dirs()
 
     def _ensure_dirs(self) -> None:
@@ -100,6 +106,25 @@ class MemoryRepository:
         self._users_dir.mkdir(parents=True, exist_ok=True)
         self._patterns_dir.mkdir(parents=True, exist_ok=True)
         self._global_patterns_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_lock(self, path: str) -> threading.Lock:
+        """获取文件锁"""
+        with self._locks_lock:
+            if path not in self._locks:
+                self._locks[path] = threading.Lock()
+            return self._locks[path]
+
+    def _atomic_write(self, path: Path, data: str) -> None:
+        """原子写入文件"""
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(data)
+            os.replace(tmp_path, str(path))
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def _extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
         """
@@ -114,12 +139,21 @@ class MemoryRepository:
         """
         # 清理文本
         text = re.sub(r'[^\w\s一-鿿]', ' ', text)
-        words = text.split()
+
+        # 尝试使用 jieba 分词
+        try:
+            import jieba
+            words = list(jieba.cut(text))
+        except ImportError:
+            # Fallback: 使用 2-gram
+            words = text.split()
+            if len(words) <= 1:
+                words = [text[i:i+2] for i in range(len(text)-1)]
 
         # 过滤停用词和单字
         keywords = [
-            w for w in words
-            if w not in STOP_WORDS and len(w) >= 2
+            w.strip() for w in words
+            if w.strip() not in STOP_WORDS and len(w.strip()) >= 2
         ]
 
         # 统计词频
@@ -204,9 +238,9 @@ class MemoryRepository:
             profile: 用户画像
         """
         user_file = self._get_user_file(user_id)
-
-        with open(user_file, "w", encoding="utf-8") as f:
-            json.dump(asdict(profile), f, ensure_ascii=False, indent=2)
+        lock = self._get_lock(str(user_file))
+        with lock:
+            self._atomic_write(user_file, json.dumps(asdict(profile), ensure_ascii=False, indent=2))
 
     def learn_pattern(
         self,
@@ -217,7 +251,7 @@ class MemoryRepository:
         context: Optional[str] = None,
     ) -> LearnedPattern:
         """
-        学习新模式 v1.13 增强版
+        学习新模式 v1.15 增强版
 
         特性:
         - 自动关键词提取
@@ -479,14 +513,12 @@ class MemoryRepository:
                 logging.warning(f"Failed to load patterns for {user_id}: {e}")
         return []
 
-        return []
-
     def _save_patterns(self, user_id: str, patterns: list[LearnedPattern]) -> None:
         """保存用户模式"""
         pattern_file = self._get_pattern_file(user_id)
-
-        with open(pattern_file, "w", encoding="utf-8") as f:
-            json.dump([asdict(p) for p in patterns], f, ensure_ascii=False, indent=2)
+        lock = self._get_lock(str(pattern_file))
+        with lock:
+            self._atomic_write(pattern_file, json.dumps([asdict(p) for p in patterns], ensure_ascii=False, indent=2))
 
     def get_pattern_count(self, user_id: str) -> int:
         """获取用户学到的模式数量"""
@@ -528,7 +560,7 @@ class MemoryRepository:
         return all_patterns
 
     def get_stats(self) -> dict:
-        """获取系统统计信息 v1.13 增强版"""
+        """获取系统统计信息 v1.15 增强版"""
         users = list(self._users_dir.glob("*.json"))
         pattern_files = list(self._patterns_dir.glob("*_patterns.json"))
         global_files = list(self._global_patterns_dir.glob("*_global.json"))
@@ -571,6 +603,23 @@ class MemoryRepository:
             "emotion_distribution": emotion_distribution,
             "memory_path": str(self._base_path),
         }
+
+    def save_evolved_rules(self, rules: List[Dict]) -> None:
+        """保存进化规则"""
+        rules_file = self._base_path / "evolved_rules.json"
+        with open(rules_file, "w", encoding="utf-8") as f:
+            json.dump(rules, f, ensure_ascii=False, indent=2)
+
+    def load_evolved_rules(self) -> List[Dict]:
+        """加载进化规则"""
+        rules_file = self._base_path / "evolved_rules.json"
+        if rules_file.exists():
+            try:
+                with open(rules_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return []
 
     def delete_user(self, user_id: str) -> None:
         """删除用户数据"""

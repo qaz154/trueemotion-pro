@@ -1,8 +1,8 @@
 @echo off
-REM TrueEmotion Pro v3.1.0 启动脚本
+REM TrueEmotion Pro v1.15 启动脚本
 cd /d "%~dp0"
 echo ================================================
-echo TrueEmotion Pro v3.1.0
+echo TrueEmotion Pro v1.15
 echo ================================================
 echo.
 echo 使用方法:

@@ -1,5 +1,5 @@
 """
-主动共情系统 v1.13
+主动共情系统 v1.15
 ====================
 让AI不只能回应，还能主动关心
 
@@ -122,14 +122,14 @@ class ProactiveEmpathyEngine:
             ProactiveResponse: 是否主动响应
         """
         # 1. 检查冷却期
+        hours_passed = None
         if time_since_last:
             hours_passed = (datetime.now() - time_since_last).total_seconds() / 3600
             if hours_passed < self._proactive_cooldown_hours:
                 return ProactiveResponse(False, None, "冷却期内", "low")
 
         # 2. 检查长期未互动
-        if time_since_last:
-            hours_passed = (datetime.now() - time_since_last).total_seconds() / 3600
+        if hours_passed is not None:
             if hours_passed >= self.CARE_TRIGGERS["long_absense"]["threshold_hours"]:
                 return ProactiveResponse(
                     True,

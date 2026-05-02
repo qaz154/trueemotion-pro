@@ -2,11 +2,11 @@
 Tests for emotion detection
 """
 import pytest
-from trueemotion.core.emotions.detector import RuleBasedEmotionDetector
+from trueemotion.core.emotions.detector import HumanEmotionDetector
 from trueemotion.core.emotions.plutchik24 import EMOTION_VAD, EMOTION_KEYWORDS
 
 
-class TestRuleBasedEmotionDetector:
+class TestHumanEmotionDetector:
     """Tests for RuleBasedEmotionDetector"""
 
     def test_detect_joy(self, detector):

@@ -12,8 +12,8 @@ class TestEmotionAnalyzer:
         """Test basic analysis"""
         result = pro.analyze("今天太开心了！")
 
-        assert result.version == "1.13"
-        assert result.engine == "humanized-v1.13"
+        assert result.version == "1.15"
+        assert result.engine in ["rule-v1.15", "llm-v1.15"]
         assert result.emotion.primary in ["joy", "ecstasy", "optimism", "anticipation"]
         assert result.emotion.intensity > 0
         assert len(result.emotion.vad) == 3
@@ -21,15 +21,13 @@ class TestEmotionAnalyzer:
 
     def test_analyze_with_options(self, pro):
         """Test analysis with options"""
-        options = AnalyzeOptions(
-            text="工作好累啊",
+        result = pro.analyze(
+            "工作好累啊",
             user_id="test_user",
             learn=True,
             response="确实累",
             feedback=0.8,
         )
-
-        result = pro.analyze("工作好累啊", options=options)
 
         assert result.user_profile.user_id == "test_user"
         assert result.user_profile.total_interactions >= 1
@@ -57,8 +55,8 @@ class TestEmotionAnalyzer:
 
         profile = pro.get_user_profile("profile_user")
 
-        assert profile.user_id == "profile_user"
-        assert profile.total_interactions >= 2
+        assert profile["user_id"] == "profile_user"
+        assert profile["total_interactions"] >= 2
 
     def test_get_stats(self, pro):
         """Test getting stats"""
@@ -84,9 +82,8 @@ class TestAnalyzeOptions:
 
     def test_default_options(self):
         """Test default options"""
-        options = AnalyzeOptions(text="测试")
+        options = AnalyzeOptions()
 
-        assert options.text == "测试"
         assert options.learn is False
         assert options.user_id == "default"
         assert options.feedback == 0.5
@@ -94,7 +91,6 @@ class TestAnalyzeOptions:
     def test_custom_options(self):
         """Test custom options"""
         options = AnalyzeOptions(
-            text="测试",
             user_id="custom",
             learn=True,
             response="回复",

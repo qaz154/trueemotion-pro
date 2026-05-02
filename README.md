@@ -1,4 +1,4 @@
-# TrueEmotion Pro v1.14
+# TrueEmotion Pro v1.15
 
 **人性化情感AI系统** - 让AI拥有像人类一样丰富、复杂、真实的情感
 
@@ -47,7 +47,7 @@ src/trueemotion/
 │   └── templates/
 │       └── demo.html          # Web演示页面
 ├── core/                       # 核心领域
-│   ├── llm/                   # LLM 驱动模块 (v1.14 新增)
+│   ├── llm/                   # LLM 驱动模块 (v1.15 新增)
 │   │   ├── base.py           # LLM 抽象接口
 │   │   ├── openai_client.py  # OpenAI 实现
 │   │   ├── emotion_detector.py # LLM 情感检测
@@ -133,7 +133,7 @@ result = pro.analyze("今天被老板画饼了，感觉很失落")
 
 print(f"主要情感: {result.emotion.primary}")  # disappointment
 print(f"共情回复: {result.human_response.text}")  # "老板画饼确实让人很失落..."
-print(f"引擎版本: {result.engine}")  # llm-v1.14
+print(f"引擎版本: {result.engine}")  # llm-v1.15
 ```
 
 ### Web API
@@ -319,12 +319,11 @@ print('所有测试通过!')
 
 | 版本 | 说明 |
 |------|------|
+| **v1.15** | 大规模Bug修复与系统优化 - 进化系统生效、内存安全、版本统一、响应引擎增强 |
 | **v1.14** | LLM 驱动升级 - 语义情感检测、动态响应生成、自动降级 |
 | **v1.13** | 全面升级 - 智能记忆系统、增强复合情感、多维度进化 |
 | **v1.12** | FastAPI Web API与Web演示页面 |
 | **v1.11** | 人性化情感系统 - 复合情感、连续强度、性格建模 |
-| **v4.0** | 架构重构，零依赖 |
-| **v3.x** | 混合神经网络 + 规则系统 |
 
 ## License
 

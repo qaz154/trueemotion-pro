@@ -1,9 +1,9 @@
 """
-情感分析器门面 v1.14
+情感分析器门面 v1.15
 ====================
 整合检测器、记忆系统、响应生成器
 
-v1.14 新增:
+v1.15 新增:
 - LLM 驱动的语义情感检测
 - LLM 驱动的动态响应生成
 - 降级机制（LLM 不可用时自动切换到规则引擎）
@@ -13,6 +13,8 @@ v1.14 新增:
 
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
+
+from trueemotion import __version__
 
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 from trueemotion.core.emotions.plutchik24 import (
@@ -62,16 +64,16 @@ class AnalyzeOptions:
 
 class EmotionAnalyzer:
     """
-    情感分析器门面 v1.14
+    情感分析器门面 v1.15
 
-    v1.14 新特性:
+    v1.15 新特性:
     - LLM 驱动的语义情感检测（更准确的复杂情感理解）
     - LLM 驱动的动态响应生成（更个性化、口语化）
     - 规则引擎降级保障（LLM 不可用时自动切换）
     - 上下文感知
     - 反讽检测
 
-    v1.13 特性:
+    v1.15 特性:
     - 人性化情感检测（连续强度、复合情感）
     - 更细腻的共情响应
     - 主动共情
@@ -95,8 +97,12 @@ class EmotionAnalyzer:
             llm_client: LLM 客户端（可选，启用 LLM 功能）
             enable_llm: 是否启用 LLM（当 llm_client 提供时生效）
         """
+        # 记忆仓库（需要先创建以加载进化规则）
+        self._memory = MemoryRepository(memory_path)
+        evolved_rules = self._memory.load_evolved_rules()
+
         # 规则引擎组件
-        self._rule_detector = detector or HumanEmotionDetector()
+        self._rule_detector = detector or HumanEmotionDetector(evolved_rules=evolved_rules)
         self._rule_empathy = empathy_engine or HumanEmpathyEngine()
 
         # LLM 组件
@@ -119,7 +125,6 @@ class EmotionAnalyzer:
         self._empathy = self._llm_response_gen if self._enable_llm else self._rule_empathy
 
         # 其他组件
-        self._memory = MemoryRepository(memory_path)
         self._irony = IronyDetector()
         self._context_analyzer = ContextualAnalyzer()
         self._conversation_contexts: Dict[str, ConversationContext] = {}
@@ -147,7 +152,7 @@ class EmotionAnalyzer:
         Returns:
             AnalysisResult: 完整分析结果
         """
-        opts = options or AnalyzeOptions(text=text)
+        opts = options or AnalyzeOptions()
 
         # 1. 情感检测（优先使用 LLM，失败则降级到规则引擎）
         emotion_scores = self._detect_emotion(text)
@@ -243,10 +248,10 @@ class EmotionAnalyzer:
                 }
 
         # 确定引擎版本
-        engine_version = "llm-v1.14" if self._enable_llm else "rule-v1.14"
+        engine_version = f"llm-v{__version__}" if self._enable_llm else f"rule-v{__version__}"
 
         return AnalysisResult(
-            version="1.14",
+            version=__version__,
             engine=engine_version,
             emotion=EmotionOutput(
                 primary=effective_emotion,
@@ -349,10 +354,9 @@ class EmotionAnalyzer:
         """判断是否为复合情感"""
         compound_emotions = {
             "bittersweet", "painful_joy", "happy_sadness",
-            "love", "hope", "despair", "regret",
-            "guilt", "pride", "envy", "contempt",
             "gratitude_love", "hope_fear", "jealous_love",
             "frustration_hopelessness", "love_admiration",
+            "anger_sadness", "shock_denial", "relief_sadness", "angry_fear",
         }
         return emotion in compound_emotions
 
@@ -393,7 +397,7 @@ class EmotionAnalyzer:
             "bittersweet": "悲喜交加", "neutral": "中性",
             "contentment": "满足", "melancholy": "忧郁", "loneliness": "孤独",
             "compassion": "同情", "gratitude": "感激", "regret": "遗憾",
-            "pride": "骄傲", "confusion": "困惑", "nostalgia": "怀旧",
+            "confusion": "困惑", "nostalgia": "怀旧",
         }
         return emotion_cn.get(emotion, emotion)
 

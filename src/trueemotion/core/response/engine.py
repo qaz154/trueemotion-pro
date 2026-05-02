@@ -1,5 +1,5 @@
 """
-人性化共情响应引擎 v1.13
+人性化共情响应引擎 v1.15
 =========================
 让AI的回复像真人一样自然、有温度
 
@@ -11,6 +11,7 @@
 5. 口语化 - 符合日常对话习惯
 """
 
+from collections import deque
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Callable
 import random
@@ -52,6 +53,7 @@ class HumanEmpathyEngine:
     ):
         self._personality = personality or Personality()
         self._personality_engine = personality_engine or PersonalityEngine(self._personality)
+        self._recent_responses: deque = deque(maxlen=20)
 
     # ============================================================
     # 核心响应模板
@@ -506,6 +508,26 @@ class HumanEmpathyEngine:
                 "没关系，慢慢理清",
             ],
         },
+        "anger_sadness": {
+            "high": [
+                "又气又难过，这种感觉真的很难受",
+                "能感受到你的愤怒和心痛",
+                "这种复杂的情绪，我懂",
+            ],
+            "medium": [
+                "又气又伤心是吧",
+                "这种心情确实很复杂",
+            ],
+            "low": [
+                "嗯，又气又难过",
+                "能理解",
+            ],
+        },
+        "default": {
+            "high": ["我理解你的心情", "说说看，我听着", "我在这里"],
+            "medium": ["嗯嗯，然后呢？", "说说看", "我听着"],
+            "low": ["嗯", "是吗", "这样啊"],
+        },
     }
 
     # 追问模板
@@ -617,6 +639,20 @@ class HumanEmpathyEngine:
     # 核心方法
     # ============================================================
 
+    def _substitute_variables(self, response: str, text: str, emotion: str) -> str:
+        """模板变量替换"""
+        emotion_cn = {
+            "joy": "开心", "sadness": "难过", "anger": "生气",
+            "fear": "害怕", "anxiety": "焦虑", "surprise": "惊讶",
+            "love": "爱", "gratitude": "感激", "despair": "绝望",
+            "confusion": "困惑", "pride": "自豪", "guilt": "内疚",
+            "regret": "遗憾", "envy": "嫉妒", "contempt": "鄙视",
+            "hope": "希望", "boredom": "无聊", "loneliness": "孤独",
+        }
+        response = response.replace("{emotion_word}", emotion_cn.get(emotion, ""))
+        response = response.replace("{text_summary}", text[:10] if len(text) > 10 else text)
+        return response
+
     def generate(
         self,
         emotion: str,
@@ -641,6 +677,9 @@ class HumanEmpathyEngine:
 
         # 2. 获取基础响应
         response_text = self._get_base_response(emotion, intensity_level)
+
+        # 2.5 模板变量替换
+        response_text = self._substitute_variables(response_text, context or "", emotion)
 
         # 3. 添加随机性
         response_text = self._add_randomness(response_text, emotion, intensity)
@@ -692,15 +731,21 @@ class HumanEmpathyEngine:
                 self.EMPATHETIC_RESPONSES[emotion].get("minimal") or
                 ["嗯"]
             )
-            return random.choice(templates)
+        else:
+            # 回退到默认
+            templates = (
+                self.EMPATHETIC_RESPONSES.get("default", {}).get(intensity_level) or
+                self.EMPATHETIC_RESPONSES.get("default", {}).get("low") or
+                ["嗯"]
+            )
 
-        # 回退到默认
-        templates = (
-            self.EMPATHETIC_RESPONSES.get("default", {}).get(intensity_level) or
-            self.EMPATHETIC_RESPONSES.get("default", {}).get("low") or
-            ["嗯"]
-        )
-        return random.choice(templates)
+        # Filter out recently used responses
+        available = [t for t in templates if t not in self._recent_responses]
+        if not available:
+            available = templates  # All used, reset
+        choice = random.choice(available)
+        self._recent_responses.append(choice)
+        return choice
 
     def _add_randomness(
         self,

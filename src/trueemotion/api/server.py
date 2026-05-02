@@ -1,12 +1,13 @@
 """
-TrueEmotion Pro v1.14 FastAPI Server
+TrueEmotion Pro v1.15 FastAPI Server
 ====================================
 人性化的情感AI Web服务
 
-v1.14 新特性:
-- LLM 驱动的语义情感检测
-- LLM 驱动的动态响应生成
-- 规则引擎降级保障
+v1.15 新特性:
+- 修复所有已知严重Bug
+- 进化系统真正生效
+- 内存系统线程安全与原子写入
+- 响应引擎优化
 """
 
 from contextlib import asynccontextmanager
@@ -19,6 +20,50 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from trueemotion import TrueEmotionPro
+
+
+def _serialize_result(result) -> dict:
+    """序列化分析结果"""
+    response_dict = {
+        "version": result.version,
+        "engine": result.engine,
+        "emotion": {
+            "primary": result.emotion.primary,
+            "intensity": round(result.emotion.intensity, 3),
+            "intensity_label": result.emotion.intensity_label,
+            "vad": {
+                "valence": result.emotion.vad[0],
+                "arousal": result.emotion.vad[1],
+                "dominance": result.emotion.vad[2],
+            },
+            "confidence": round(result.emotion.confidence, 3),
+            "all_emotions": result.emotion.all_emotions,
+            "compound_emotions": result.emotion.compound_emotions,
+            "emotion_mix": result.emotion.emotion_mix,
+        },
+        "human_response": {
+            "text": result.human_response.text,
+            "empathy_type": result.human_response.empathy_type,
+            "intensity_level": result.human_response.intensity_level,
+            "follow_up": result.human_response.follow_up,
+            "empathy_depth": result.human_response.empathy_depth,
+            "tone": result.human_response.tone,
+        },
+    }
+    if result.compound_emotions:
+        response_dict["compound_emotions"] = result.compound_emotions
+    if result.user_profile:
+        response_dict["user_profile"] = {
+            "user_id": result.user_profile.user_id,
+            "total_interactions": result.user_profile.total_interactions,
+            "dominant_emotion": result.user_profile.dominant_emotion,
+            "relationship_level": round(result.user_profile.relationship_level, 3),
+            "learned_patterns": result.user_profile.learned_patterns,
+            "last_emotion": result.user_profile.last_emotion,
+            "emotional_state": result.user_profile.emotional_state,
+            "interaction_style": result.user_profile.interaction_style,
+        }
+    return response_dict
 
 
 # Pydantic Models for API
@@ -69,7 +114,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TrueEmotion Pro API",
     description="""
-## TrueEmotion Pro v1.14 - 人性化情感AI系统 (LLM驱动)
+## TrueEmotion Pro v1.15 - 人性化情感AI系统 (LLM驱动)
 
 让AI拥有像人类一样丰富、复杂、真实的情感。
 
@@ -87,7 +132,7 @@ app = FastAPI(
 支持35+种情感：joy, sadness, anger, fear, anticipation, surprise, disgust, trust
 以及复合情感如：bittersweet, hope_fear, love_hope 等
     """,
-    version="1.14",
+    version="1.15",
     lifespan=lifespan,
 )
 
@@ -114,7 +159,7 @@ async def root():
     """服务信息"""
     return JSONResponse({
         "name": "TrueEmotion Pro",
-        "version": "1.14",
+        "version": "1.15",
         "description": "人性化情感AI系统 (LLM驱动)",
         "docs": "/docs",
         "health": "/health",
@@ -136,8 +181,8 @@ async def health_check():
         raise HTTPException(status_code=503, detail="Service not initialized")
     return JSONResponse({
         "status": "healthy",
-        "version": "1.14",
-        "engine": "llm-v1.14" if _pro_instance.is_llm_enabled else "rule-v1.14",
+        "version": "1.15",
+        "engine": "llm-v1.15" if _pro_instance.is_llm_enabled else "rule-v1.15",
     })
 
 
@@ -166,46 +211,12 @@ async def analyze_text(request: AnalyzeRequest):
             user_id=request.user_id,
         )
 
+        data = _serialize_result(result)
+        data["context_used"] = result.context_used
+        data["explanation"] = result.explanation
         return JSONResponse({
             "success": True,
-            "data": {
-                "version": result.version,
-                "engine": result.engine,
-                "emotion": {
-                    "primary": result.emotion.primary,
-                    "intensity": result.emotion.intensity,
-                    "intensity_label": result.emotion.intensity_label,
-                    "vad": {
-                        "valence": result.emotion.vad[0],
-                        "arousal": result.emotion.vad[1],
-                        "dominance": result.emotion.vad[2],
-                    },
-                    "confidence": result.emotion.confidence,
-                    "all_emotions": result.emotion.all_emotions,
-                    "compound_emotions": result.emotion.compound_emotions,
-                    "emotion_mix": result.emotion.emotion_mix,
-                },
-                "human_response": {
-                    "text": result.human_response.text,
-                    "empathy_type": result.human_response.empathy_type,
-                    "intensity_level": result.human_response.intensity_level,
-                    "follow_up": result.human_response.follow_up,
-                    "empathy_depth": result.human_response.empathy_depth,
-                    "tone": result.human_response.tone,
-                },
-                "user_profile": {
-                    "user_id": result.user_profile.user_id,
-                    "total_interactions": result.user_profile.total_interactions,
-                    "dominant_emotion": result.user_profile.dominant_emotion,
-                    "relationship_level": result.user_profile.relationship_level,
-                    "learned_patterns": result.user_profile.learned_patterns,
-                    "last_emotion": result.user_profile.last_emotion,
-                    "emotional_state": result.user_profile.emotional_state,
-                    "interaction_style": result.user_profile.interaction_style,
-                },
-                "context_used": result.context_used,
-                "explanation": result.explanation,
-            },
+            "data": data,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -230,35 +241,7 @@ async def analyze_batch_text(request: BatchAnalyzeRequest):
 
         return JSONResponse({
             "success": True,
-            "data": [
-                {
-                    "version": result.version,
-                    "engine": result.engine,
-                    "emotion": {
-                        "primary": result.emotion.primary,
-                        "intensity": result.emotion.intensity,
-                        "intensity_label": result.emotion.intensity_label,
-                        "vad": {
-                            "valence": result.emotion.vad[0],
-                            "arousal": result.emotion.vad[1],
-                            "dominance": result.emotion.vad[2],
-                        },
-                        "confidence": result.emotion.confidence,
-                        "all_emotions": result.emotion.all_emotions,
-                        "compound_emotions": result.emotion.compound_emotions,
-                        "emotion_mix": result.emotion.emotion_mix,
-                    },
-                    "human_response": {
-                        "text": result.human_response.text,
-                        "empathy_type": result.human_response.empathy_type,
-                        "intensity_level": result.human_response.intensity_level,
-                        "follow_up": result.human_response.follow_up,
-                        "empathy_depth": result.human_response.empathy_depth,
-                        "tone": result.human_response.tone,
-                    },
-                }
-                for result in results
-            ],
+            "data": [_serialize_result(result) for result in results],
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

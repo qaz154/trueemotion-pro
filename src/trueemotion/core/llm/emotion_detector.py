@@ -1,10 +1,11 @@
 """
-LLM 情感检测器 v1.14
+LLM 情感检测器 v1.15
 ====================
 使用 LLM 进行深度语义情感检测
 """
 
 import logging
+import time
 from typing import Dict, Optional, Any, List, Tuple
 
 from trueemotion.core.llm.base import BaseLLMClient, LLMError, LLMResponse
@@ -49,9 +50,12 @@ class LLMEmotionDetector:
         # 检查缓存
         cache_key = text
         if cache_key in self._cache:
-            cached = self._cache[cache_key]
-            logger.debug(f"Cache hit for: {text[:30]}...")
-            return cached
+            cached_data, cached_time = self._cache[cache_key]
+            if time.time() - cached_time > self._cache_ttl:
+                del self._cache[cache_key]
+            else:
+                logger.debug(f"Cache hit for: {text[:30]}...")
+                return cached_data
 
         try:
             result = self._llm.detect_emotion(text, context)
@@ -64,7 +68,13 @@ class LLMEmotionDetector:
                 emotions[compound["name"]] = compound["intensity"]
 
             # 缓存结果
-            self._cache[cache_key] = emotions
+            self._cache[cache_key] = (emotions, time.time())
+
+            # 缓存大小限制
+            if len(self._cache) > 10000:
+                sorted_keys = sorted(self._cache.keys(), key=lambda k: self._cache[k][1])
+                for key in sorted_keys[:5000]:
+                    del self._cache[key]
 
             return emotions
 
@@ -111,12 +121,16 @@ class LLMEmotionDetector:
         """
         cache_key = f"_detailed_{text}"
         if cache_key in self._cache:
-            return self._cache[cache_key]
+            cached_data, cached_time = self._cache[cache_key]
+            if time.time() - cached_time > self._cache_ttl:
+                del self._cache[cache_key]
+            else:
+                return cached_data
 
         result = self._llm.detect_emotion(text, context)
 
         # 缓存
-        self._cache[cache_key] = result
+        self._cache[cache_key] = (result, time.time())
 
         return result
 

@@ -9,9 +9,9 @@
 - 跨对话记忆用户情感状态
 - 自动学习新模式
 - 持续进化优化
-- **LLM 驱动的语义理解**（v1.14 新增）
-- **动态响应生成**（v1.14 新增）
-- **自动降级机制**（v1.14 新增）
+- **LLM 驱动的语义理解**（v1.15 新增）
+- **动态响应生成**（v1.15 新增）
+- **自动降级机制**（v1.15 新增）
 
 ## 使用方法
 
@@ -68,7 +68,7 @@ curl -X POST http://localhost:8000/analyze \
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | `version` | str | 版本号，如 "1.14" |
-| `engine` | str | 引擎名，如 "llm-v1.14" 或 "rule-v1.14" |
+| `engine` | str | 引擎名，如 "llm-v1.15" 或 "rule-v1.15" |
 | `emotion.primary` | str | 主要情感 (joy, sadness, anger...) |
 | `emotion.intensity` | float | 情感强度 0-1 |
 | `emotion.intensity_label` | str | 强度标签（极微/微弱/轻微/中等/强烈/极致） |
@@ -107,7 +107,7 @@ curl -X POST http://localhost:8000/analyze \
 
 ## LLM 模式说明
 
-v1.14 引入了 LLM 驱动的情感分析，相比规则引擎：
+v1.15 引入了 LLM 驱动的情感分析，相比规则引擎：
 
 ### 优势
 1. **语义理解**: 能理解深层语义，如"画饼"理解为失望+愤世嫉俗
@@ -187,5 +187,5 @@ for r in results:
 # 不使用 LLM，只用规则引擎
 pro = TrueEmotionPro(llm_provider=None)
 result = pro.analyze("今天很开心")
-print(f"Engine: {result.engine}")  # rule-v1.14
+print(f"Engine: {result.engine}")  # rule-v1.15
 ```

@@ -1,5 +1,5 @@
 """
-反讽检测器 v1.13
+反讽检测器 v1.15
 ================
 识别真实情感 vs 表面情感
 
@@ -151,6 +151,12 @@ class IronyDetector:
         """检查反讽模式"""
         clues = []
         confidence = 0.0
+
+        # Check predefined irony patterns
+        for (category, phrase, true_emotion), conf in self.IRONY_PATTERNS.items():
+            if phrase in text:
+                clues.append(f"反讽模式: '{phrase}' (类别: {category})")
+                confidence += conf * 0.3
 
         # 检查反讽关键词
         for keyword in self.IRONY_KEYWORDS:

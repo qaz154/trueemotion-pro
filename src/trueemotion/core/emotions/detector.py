@@ -1,5 +1,5 @@
 """
-人性化情感检测器 v1.13
+人性化情感检测器 v1.15
 ======================
 支持:
 - 情感复合检测
@@ -100,15 +100,18 @@ class HumanEmotionDetector:
         "?!": 1.3, "！？": 1.3,     # 惊讶+疑问
     }
 
-    def __init__(self, threshold: float = 0.03):
+    def __init__(self, threshold: float = 0.03, evolved_rules: list = None):
         """
         初始化检测器
 
         Args:
             threshold: 检测阈值，低于此值的情感被过滤
+            evolved_rules: 进化规则列表
         """
         self.threshold = threshold
+        self._evolved_rules = evolved_rules or []
         self._build_index()
+        self._apply_evolved_rules()
 
     def _build_index(self) -> None:
         """构建关键词索引以加速匹配"""
@@ -119,6 +122,17 @@ class HumanEmotionDetector:
                 if keyword not in self._keyword_to_emotions:
                     self._keyword_to_emotions[keyword] = []
                 self._keyword_to_emotions[keyword].append((emotion, keyword))
+
+    def _apply_evolved_rules(self) -> None:
+        """应用进化规则到关键词索引"""
+        for rule in self._evolved_rules:
+            emotion = rule.get("emotion")
+            keywords = rule.get("keywords", [])
+            if emotion and keywords:
+                for keyword in keywords:
+                    if keyword not in self._keyword_to_emotions:
+                        self._keyword_to_emotions[keyword] = []
+                    self._keyword_to_emotions[keyword].append((emotion, keyword))
 
     def detect(self, text: str) -> Dict[str, float]:
         """
@@ -331,10 +345,13 @@ class HumanEmotionDetector:
             score *= 0.9
 
         # 6. 强化词
+        matched_multipliers = []
         for word, multiplier in self.INTENSIFIERS.items():
             if word in text:
-                score *= multiplier
-                break  # 只应用最强的强化词
+                matched_multipliers.append(multiplier)
+        if matched_multipliers:
+            best = max(matched_multipliers, key=lambda m: abs(m - 1.0))
+            score *= best
 
         # 7. 语气词
         for particle, multiplier in self.PARTICLES.items():

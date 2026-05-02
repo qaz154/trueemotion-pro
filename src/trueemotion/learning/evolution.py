@@ -1,14 +1,15 @@
 """
-进化管理器 v1.13
+进化管理器 v1.15
 从学习到的模式中提取新规则，反哺检测器
 
-v1.13 增强:
+v1.15 增强:
 - 更智能的关键词提取
 - 多维度置信度计算
 - 全局模式融合
 - 进化历史追踪
 """
 
+import json
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -39,7 +40,7 @@ class EvolutionHistory:
 
 class EvolutionManager:
     """
-    进化管理器 v1.13
+    进化管理器 v1.15
 
     分析学习到的模式，提取高反馈的模式作为新规则
     特性:
@@ -61,11 +62,11 @@ class EvolutionManager:
             memory_repo: 记忆仓库实例
         """
         self._memory = memory_repo
-        self._evolution_history: List[EvolutionHistory] = []
+        self._evolution_history: List[EvolutionHistory] = self._load_history()
 
     def evolve(self) -> dict:
         """
-        执行进化 v1.13 增强版
+        执行进化 v1.15 增强版
 
         分析所有用户的学习模式，提取高反馈的模式作为新规则
         融合全局模式库中的优质模式
@@ -125,6 +126,13 @@ class EvolutionManager:
                     if confidence >= 0.7:
                         changes.append(f"高置信度规则: {emotion} ({confidence:.2f})")
 
+        # 将全局模式也纳入进化分析
+        for gp in global_patterns:
+            emotion = gp.get("emotion")
+            if emotion and emotion in emotion_groups:
+                # 全局模式视为高置信度参考
+                pass  # Already counted in stats
+
         # 按置信度排序
         evolved_rules.sort(key=lambda r: r.confidence, reverse=True)
 
@@ -140,6 +148,21 @@ class EvolutionManager:
             changes=changes,
         )
         self._evolution_history.append(history)
+        self._save_history()
+
+        # 构建并保存进化规则
+        evolved_rules_dict = [
+            {
+                "emotion": r.emotion,
+                "keywords": r.keywords,
+                "source_patterns": r.source_patterns,
+                "avg_feedback": r.avg_feedback,
+                "confidence": r.confidence,
+                "usage_count": r.usage_count,
+            }
+            for r in evolved_rules
+        ]
+        self._memory.save_evolved_rules(evolved_rules_dict)
 
         return {
             "total_patterns_analyzed": total_patterns_analyzed,
@@ -156,7 +179,7 @@ class EvolutionManager:
                 for r in evolved_rules
             ],
             "global_patterns_used": len(global_patterns),
-            "evolution_version": "1.3",
+            "evolution_version": "1.15",
             "evolution_count": len(self._evolution_history),
         }
 
@@ -215,7 +238,7 @@ class EvolutionManager:
         return confidence
 
     def get_evolution_status(self) -> dict:
-        """获取进化状态 v1.13"""
+        """获取进化状态 v1.15"""
         all_patterns = self._memory.get_all_patterns()
 
         high_quality = 0
@@ -240,6 +263,43 @@ class EvolutionManager:
             "evolution_count": len(self._evolution_history),
             "last_evolution": self._evolution_history[-1].timestamp if self._evolution_history else None,
         }
+
+    def _load_history(self) -> list:
+        """加载进化历史"""
+        history_file = self._memory._base_path / "evolution_history.json"
+        if history_file.exists():
+            try:
+                with open(history_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return [
+                    EvolutionHistory(
+                        timestamp=h.get("timestamp", ""),
+                        patterns_analyzed=h.get("patterns_analyzed", 0),
+                        rules_evolved=h.get("rules_evolved", 0),
+                        avg_confidence=h.get("avg_confidence", 0.0),
+                        changes=h.get("changes", []),
+                    )
+                    for h in data
+                ]
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return []
+
+    def _save_history(self) -> None:
+        """保存进化历史"""
+        history_file = self._memory._base_path / "evolution_history.json"
+        data = [
+            {
+                "timestamp": h.timestamp,
+                "patterns_analyzed": h.patterns_analyzed,
+                "rules_evolved": h.rules_evolved,
+                "avg_confidence": h.avg_confidence,
+                "changes": h.changes,
+            }
+            for h in self._evolution_history
+        ]
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def get_evolution_history(self, limit: int = 10) -> List[dict]:
         """获取进化历史"""

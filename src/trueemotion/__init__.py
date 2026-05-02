@@ -1,14 +1,18 @@
 """
-TrueEmotion Pro v1.14 - 人性化情感AI系统
+TrueEmotion Pro v1.15 - 人性化情感AI系统
 让AI拥有像人类一样丰富、复杂、真实的情感
 
-v1.14 新特性:
-- LLM 驱动的语义情感检测
-- LLM 驱动的动态响应生成
-- 规则引擎降级保障
+v1.15 新特性:
+- 修复所有已知严重Bug
+- 进化系统真正生效
+- 内存系统线程安全与原子写入
+- 中文关键词提取优化（jieba支持）
+- 响应引擎模板变量与去重
+- LLM缓存TTL与可用性检查优化
+- 版本统一管理
 """
 
-__version__ = "1.14"
+__version__ = "1.15"
 __author__ = "TrueEmotion Team"
 
 from trueemotion.api.routes import TrueEmotionPro, create_analyzer

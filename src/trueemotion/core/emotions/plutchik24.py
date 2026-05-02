@@ -1,5 +1,5 @@
 """
-TrueEmotion - 人性化情感系统 v1.13
+TrueEmotion - 人性化情感系统 v1.15
 =====================================
 让AI拥有像人类一样丰富、复杂、真实的情感
 
@@ -114,6 +114,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
         "激动", "热血", "沸腾", "癫狂", "欢天喜地", "心花怒放", "手舞足蹈",
         "欣喜若狂", "乐不可支", "欢欣雀跃", "亢奋", "嗨起来", "爽呆", "爆炸开心"
     ),
+    "serenity": (
+        "宁静", "平静", "安宁", "安详", "恬静", "祥和", "从容", "淡然",
+        "心如止水", "波澜不惊", "静谧", "悠然", "闲适", "恬淡", "平和"
+    ),
 
     # 悲伤
     "sadness": (
@@ -134,6 +138,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
         "孤独", "寂寞", "孤单", "空落落", "冷清", "孤零零", "寂寥", "落寞",
         "空虚", "茫然", "无所依托", "无所事事", "心里空空的"
     ),
+    "pensiveness": (
+        "沉思", "深思", "思索", "思量", "沉吟", "若有所思", "冥想",
+        "思绪", "琢磨", "思考", "想一想", "陷入沉思", "凝思"
+    ),
 
     # 愤怒
     "anger": (
@@ -144,6 +152,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
     "rage": (
         "暴怒", "狂怒", "怒火中烧", "火冒三丈", "大发雷霆", "怒发冲冠", "暴跳如雷",
         "怒狠狠", "气炸", "气疯了", "恨之入骨", "怒不可遏", "满腔怒火", "怒形于色"
+    ),
+    "annoyance": (
+        "烦恼", "烦", "恼", "气恼", "烦躁", "心烦", "腻烦", "厌烦",
+        "不耐烦", "不爽", "窝火", "憋屈", "郁闷", "烦人", "惹人烦"
     ),
     "contempt": (
         "鄙视", "蔑视", "藐视", "轻蔑", "看不起", "不屑", "鄙夷", "轻视",
@@ -162,6 +174,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
     "anxiety": (
         "焦虑", "忧虑", "着急", "担忧", "担心", "不安", "紧张", "烦躁",
         "坐立不安", "忐忑", "心神不宁", "慌张", "慌忙", "焦急", "牵挂", "顾虑"
+    ),
+    "apprehension": (
+        "忧虑", "忧心", "隐隐不安", "有所顾虑", "惴惴不安", "提心吊胆",
+        "心存疑虑", "担心", "不安", "忐忑", "忧惧", "惴惴", "顾虑重重"
     ),
 
     # 厌恶
@@ -187,6 +203,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
         "惊骇", "震惊", "惊呆", "目瞪口呆", "瞠目结舌", "大惊", "惊呼", "惊叹",
         "惊异", "惊诧", "诧异", "匪夷所思", "难以置信", "不可思议", "惊愕", "惊倒"
     ),
+    "distraction": (
+        "分心", "走神", "心不在焉", "神游", "恍惚", "发呆", "出神",
+        "注意力不集中", "心猿意马", "魂不守舍", "漫不经心"
+    ),
 
     # 信任
     "trust": (
@@ -200,6 +220,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
     "acceptance": (
         "接受", "认可", "认同", "同意", "赞成", "肯定", "承认", "容纳", "包容",
         "理解", "体谅", "谅解", "宽恕", "原谅", "赞许", "首肯"
+    ),
+    "interest": (
+        "兴趣", "好奇", "感兴趣", "关注", "注意", "留意", "探究",
+        "想了解", "怎么回事", "有意思", "有看头", "吸引", "好奇心想"
     ),
 
     # 期待
@@ -326,6 +350,10 @@ EMOTION_KEYWORDS: Dict[str, Tuple[str, ...]] = {
         "自责", "愧疚", "对不起", "过意不去", "心里不安", "亏欠",
         "对不起大家", "让大家失望了"
     ),
+    "anger_sadness": (
+        "怒其不争", "又气又难过", "气恼悲伤", "又怒又悲", "气得想哭",
+        "又恨又心疼", "愤怒又伤心", "又气又心酸"
+    ),
     "jealous_love": (
         "吃醋", "醋意", "酸了", "嫉妒", "占有欲", "吃醋了", "酸溜溜",
         "凭什么", "不公", "委屈"
@@ -371,8 +399,8 @@ EMOTION_ANTONYM: Dict[str, str] = {
 EMOTION_TRANSITIONS: Dict[str, List[str]] = {
     "joy": ["contentment", "pride", "ecstasy", "love", "gratitude"],
     "sadness": ["grief", "despair", "loneliness", "melancholy", "sorrow"],
-    "anger": ["rage", "contempt", "frustration", "annoyance"],
-    "fear": ["terror", "anxiety", "apprehension", "worry"],
+    "anger": ["rage", "contempt", "annoyance", "annoyance"],
+    "fear": ["terror", "anxiety", "apprehension", "apprehension"],
     "anticipation": ["hope", "hope_fear", "anxiety", "vigilance"],
     "surprise": ["astonishment", "confusion", "curiosity"],
     "trust": ["acceptance", "admiration", "love", "gratitude"],
@@ -506,7 +534,7 @@ def calculate_compound_emotion(emotions: Dict[str, float]) -> Dict[str, float]:
 
             # anger + sadness = 愤怒悲伤混合
             if {e1, e2} == {"anger", "sadness"}:
-                compound_emotions["sadness_guilt"] = combined * 0.8
+                compound_emotions["anger_sadness"] = combined * 0.8
 
             # joy + guilt = 开心但愧疚
             if {e1, e2} == {"joy", "guilt"}:

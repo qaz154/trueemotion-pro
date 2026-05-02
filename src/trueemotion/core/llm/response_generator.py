@@ -1,5 +1,5 @@
 """
-LLM 响应生成器 v1.14
+LLM 响应生成器 v1.15
 ====================
 使用 LLM 生成自然、口语化的共情响应
 """
@@ -60,6 +60,19 @@ def _get_intensity_level(intensity: float) -> str:
 def _get_empathy_type(emotion: str) -> str:
     """获取共情类型"""
     return EMPATHY_TYPE_MAPPING.get(emotion, "共情回应")
+
+
+def _derive_tone(emotion: str, intensity: float) -> str:
+    """根据情感推导语气"""
+    if emotion in ("joy", "ecstasy", "love"):
+        return "热情" if intensity > 0.7 else "温暖"
+    if emotion in ("sadness", "grief", "despair"):
+        return "温柔" if intensity > 0.7 else "温和"
+    if emotion in ("anger", "rage"):
+        return "理解" if intensity > 0.7 else "平静"
+    if emotion in ("fear", "anxiety", "terror"):
+        return "安抚" if intensity > 0.7 else "关心"
+    return "温暖"
 
 
 class LLMResponseGenerator:
@@ -125,7 +138,7 @@ class LLMResponseGenerator:
                 empathy_type=_get_empathy_type(emotion),
                 intensity_level=_get_intensity_level(intensity),
                 follow_up=follow_up,
-                tone="温暖",
+                tone=_derive_tone(emotion, intensity),
             )
 
         except LLMError as e:
