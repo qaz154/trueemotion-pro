@@ -46,6 +46,25 @@ class HumanEmpathyEngine:
     5. 关系感知 - 根据亲密度调整语气
     """
 
+    # 强度等级阈值
+    INTENSITY_HIGH_THRESHOLD = 0.85
+    INTENSITY_MEDIUM_THRESHOLD = 0.50
+    INTENSITY_LOW_THRESHOLD = 0.20
+
+    # 随机性概率常量
+    EMPHASIS_PROBABILITY = 0.3
+    FOLLOW_UP_HIGH_PROBABILITY = 0.7
+    FOLLOW_UP_MEDIUM_PROBABILITY = 0.4
+    FILLER_PROBABILITY = 0.25
+    EMPHASIS_INTENSITY_THRESHOLD = 0.8
+    FILLER_INTENSITY_THRESHOLD = 0.6
+
+    # 强度标签
+    INTENSITY_LEVEL_HIGH = "high"
+    INTENSITY_LEVEL_MEDIUM = "medium"
+    INTENSITY_LEVEL_LOW = "low"
+    INTENSITY_LEVEL_MINIMAL = "minimal"
+
     def __init__(
         self,
         personality: Optional[Personality] = None,
@@ -712,14 +731,14 @@ class HumanEmpathyEngine:
         调整阈值以更好匹配实际情感强度:
         - 强烈负面情感(如绝望)即使分数不高也应有更深入的回应
         """
-        if intensity >= 0.85:
-            return "high"
-        elif intensity >= 0.50:
-            return "medium"
-        elif intensity >= 0.20:
-            return "low"
+        if intensity >= self.INTENSITY_HIGH_THRESHOLD:
+            return self.INTENSITY_LEVEL_HIGH
+        elif intensity >= self.INTENSITY_MEDIUM_THRESHOLD:
+            return self.INTENSITY_LEVEL_MEDIUM
+        elif intensity >= self.INTENSITY_LOW_THRESHOLD:
+            return self.INTENSITY_LEVEL_LOW
         else:
-            return "minimal"
+            return self.INTENSITY_LEVEL_MINIMAL
 
     def _get_base_response(self, emotion: str, intensity_level: str) -> str:
         """获取基础响应"""
@@ -755,7 +774,7 @@ class HumanEmpathyEngine:
     ) -> str:
         """添加随机性，让同样输入有不同输出"""
         # 高强度情感时偶尔添加强调
-        if intensity > 0.8 and random.random() < 0.3:
+        if intensity > self.EMPHASIS_INTENSITY_THRESHOLD and random.random() < self.EMPHASIS_PROBABILITY:
             emphasis = random.choice(["真的", "确实", "完全", ""])
             if emphasis and not response.startswith(emphasis):
                 response = emphasis + response
@@ -769,13 +788,13 @@ class HumanEmpathyEngine:
     ) -> Optional[str]:
         """可能添加追问"""
         # 中高强度时更可能添加追问
-        if intensity_level == "high" and random.random() < 0.7:
+        if intensity_level == self.INTENSITY_LEVEL_HIGH and random.random() < self.FOLLOW_UP_HIGH_PROBABILITY:
             templates = self.FOLLOW_UP_TEMPLATES.get(
                 emotion, self.FOLLOW_UP_TEMPLATES["default"]
             ).get(intensity_level, self.FOLLOW_UP_TEMPLATES["default"]["low"])
             return random.choice(templates)
 
-        elif intensity_level == "medium" and random.random() < 0.4:
+        elif intensity_level == self.INTENSITY_LEVEL_MEDIUM and random.random() < self.FOLLOW_UP_MEDIUM_PROBABILITY:
             templates = self.FOLLOW_UP_TEMPLATES.get(
                 emotion, self.FOLLOW_UP_TEMPLATES["default"]
             ).get("low", ["嗯"])
@@ -786,7 +805,7 @@ class HumanEmpathyEngine:
     def _add_filler(self, response: str, intensity: float) -> str:
         """添加语气词，让语言更自然"""
         # 高强度时偶尔添加语气词
-        if intensity > 0.6 and random.random() < 0.25:
+        if intensity > self.FILLER_INTENSITY_THRESHOLD and random.random() < self.FILLER_PROBABILITY:
             filler = random.choice(self.FILLERS)
             if filler:
                 # 根据句尾标点决定插入位置
