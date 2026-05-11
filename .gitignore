@@ -55,6 +55,12 @@ memory/global_patterns/
 *.pt
 *.pth
 *.onnx
+src/models/
+
+# Temp files
+temp_*.txt
+*_log.txt
+src/temp_*
 
 # Test artifacts
 test_memory/
