@@ -1,10 +1,10 @@
-# TrueEmotion Pro v1.15
+# TrueEmotion Pro v1.16
 
 **人性化情感AI系统** - 让AI拥有像人类一样丰富、复杂、真实的情感
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.14-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-1.16-blue.svg)]()
 
 ## 核心理念
 
@@ -79,8 +79,11 @@ src/trueemotion/
 git clone https://github.com/qaz154/trueemotion-pro.git
 cd trueemotion-pro
 
-# 安装依赖
-pip install fastapi uvicorn pydantic
+# 安装（推荐安装全部依赖）
+pip install -e ".[all]"
+
+# 或仅安装核心依赖
+pip install -e .
 
 # 设置 Python 路径
 export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"  # Linux/Mac
@@ -304,9 +307,9 @@ print('所有测试通过!')
 ## 依赖
 
 - Python 3.9+
-- **核心系统**: 无外部依赖（纯规则系统）
+- **核心依赖** (自动安装): fastapi, uvicorn, pydantic, openai, jieba
 - **LLM 模式**: 需要 OpenAI API Key
-- **Web API**: fastapi, uvicorn, pydantic
+- **Web API**: 通过 `pip install -e ".[api]"` 安装
 
 ## 环境变量
 
@@ -319,6 +322,7 @@ print('所有测试通过!')
 
 | 版本 | 说明 |
 |------|------|
+| **v1.16** | OpenAI 客户端改用官方 SDK、清理仓库移除二进制文件、依赖声明规范化 |
 | **v1.15** | 大规模Bug修复与系统优化 - 进化系统生效、内存安全、版本统一、响应引擎增强 |
 | **v1.14** | LLM 驱动升级 - 语义情感检测、动态响应生成、自动降级 |
 | **v1.13** | 全面升级 - 智能记忆系统、增强复合情感、多维度进化 |

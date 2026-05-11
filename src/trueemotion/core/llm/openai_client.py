@@ -1,7 +1,11 @@
 """
-OpenAI LLM 客户端 v1.15
+OpenAI LLM 客户端 v1.16
 =======================
-基于 OpenAI API 的 LLM 客户端实现
+基于 OpenAI 官方 SDK 的 LLM 客户端实现
+
+v1.16 变更:
+- 使用 openai SDK 替代 urllib.request（自动重试、连接池、更好的错误处理）
+- 移除手动重试逻辑（SDK 内置）
 """
 
 import json
@@ -19,9 +23,9 @@ from trueemotion.core.llm.prompts import (
 
 class OpenAIClient(BaseLLMClient):
     """
-    OpenAI API 客户端
+    OpenAI API 客户端 v1.16
 
-    支持 OpenAI 兼容的 API（如 Azure OpenAI, 自建代理等）
+    使用 openai 官方 SDK，支持 OpenAI 兼容的 API（如 Azure OpenAI、自建代理等）
     """
 
     def __init__(
@@ -37,16 +41,14 @@ class OpenAIClient(BaseLLMClient):
 
         Args:
             api_key: OpenAI API Key (默认从环境变量 OPENAI_API_KEY 获取)
-            model: 模型名称，默认 gpt-4o-mini (性价比最高)
+            model: 模型名称，默认 gpt-4o-mini
             base_url: API 基础 URL (用于代理或 Azure OpenAI)
             timeout: 请求超时时间（秒）
             max_retries: 最大重试次数
         """
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self._model = model
-        self._base_url = base_url or os.environ.get(
-            "OPENAI_API_BASE", "https://api.openai.com/v1"
-        )
+        self._base_url = base_url or os.environ.get("OPENAI_API_BASE")
         self._timeout = timeout
         self._max_retries = max_retries
         self._last_check_time = None
@@ -54,6 +56,22 @@ class OpenAIClient(BaseLLMClient):
 
         if not self._api_key:
             raise LLMError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
+
+        # 初始化 openai SDK 客户端
+        try:
+            from openai import OpenAI
+            client_kwargs = {
+                "api_key": self._api_key,
+                "timeout": self._timeout,
+                "max_retries": self._max_retries,
+            }
+            if self._base_url:
+                client_kwargs["base_url"] = self._base_url
+            self._client = OpenAI(**client_kwargs)
+        except ImportError:
+            raise LLMError(
+                "openai SDK not installed. Run: pip install openai>=1.0.0"
+            )
 
     def complete(
         self,
@@ -64,63 +82,44 @@ class OpenAIClient(BaseLLMClient):
         **kwargs
     ) -> LLMResponse:
         """生成文本补全"""
-        import urllib.request
-        import urllib.error
-
-        url = f"{self._base_url.rstrip('/')}/chat/completions"
-
-        messages = [{"role": "user", "content": prompt}]
-
-        payload = {
-            "model": self._model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            **kwargs,
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self._api_key}",
-        }
-
         start_time = time.time()
-        last_error = None
 
-        for attempt in range(self._max_retries):
-            try:
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers=headers,
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=self._timeout) as response:
-                    data = json.loads(response.read().decode("utf-8"))
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs,
+            )
 
-                latency_ms = self._record_latency(start_time)
+            latency_ms = self._record_latency(start_time)
 
-                choices = data.get("choices", [])
-                if not choices:
-                    raise LLMError("No response from OpenAI")
+            choice = response.choices[0] if response.choices else None
+            if not choice:
+                raise LLMError("No response from OpenAI")
 
-                content = choices[0].get("message", {}).get("content", "")
+            content = choice.message.content or ""
+            usage = {}
+            if response.usage:
+                usage = {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
 
-                return LLMResponse(
-                    content=content,
-                    usage=data.get("usage", {}),
-                    model=data.get("model", self._model),
-                    latency_ms=latency_ms,
-                    raw_response=data,
-                )
+            return LLMResponse(
+                content=content,
+                usage=usage,
+                model=response.model or self._model,
+                latency_ms=latency_ms,
+                raw_response=response.model_dump() if hasattr(response, "model_dump") else {},
+            )
 
-            except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
-                last_error = e
-                if attempt < self._max_retries - 1:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
-
-        raise LLMError(f"OpenAI request failed after {self._max_retries} attempts: {last_error}")
+        except Exception as e:
+            if isinstance(e, LLMError):
+                raise
+            raise LLMError(f"OpenAI request failed: {e}")
 
     def detect_emotion(self, text: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """

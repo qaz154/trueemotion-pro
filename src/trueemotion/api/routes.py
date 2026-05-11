@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.15 API
+TrueEmotion Pro v1.16 API
 人性化情感AI系统
 """
 
