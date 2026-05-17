@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from trueemotion import TrueEmotionPro
+from trueemotion import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TrueEmotion Pro API",
     description="""
-## TrueEmotion Pro v1.15 - 人性化情感AI系统 (LLM驱动)
+## TrueEmotion Pro - 人性化情感AI系统 (LLM驱动)
 
 让AI拥有像人类一样丰富、复杂、真实的情感。
 
@@ -136,7 +137,7 @@ app = FastAPI(
 支持35+种情感：joy, sadness, anger, fear, anticipation, surprise, disgust, trust
 以及复合情感如：bittersweet, hope_fear, love_hope 等
     """,
-    version="1.15",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -163,7 +164,7 @@ async def root():
     """服务信息"""
     return JSONResponse({
         "name": "TrueEmotion Pro",
-        "version": "1.15",
+        "version": __version__,
         "description": "人性化情感AI系统 (LLM驱动)",
         "docs": "/docs",
         "health": "/health",
@@ -186,8 +187,8 @@ async def health_check(request: Request):
     pro = _get_pro(request)
     return JSONResponse({
         "status": "healthy",
-        "version": "1.15",
-        "engine": "llm-v1.15" if pro.is_llm_enabled else "rule-v1.15",
+        "version": __version__,
+        "engine": f"llm-v{__version__}" if pro.is_llm_enabled else f"rule-v{__version__}",
     })
 
 

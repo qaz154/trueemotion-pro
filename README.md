@@ -1,10 +1,10 @@
-# TrueEmotion Pro v1.16
+# TrueEmotion Pro v1.17
 
 **人性化情感AI系统** - 让AI拥有像人类一样丰富、复杂、真实的情感
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.16-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-1.17-blue.svg)]()
 
 ## 核心理念
 
@@ -136,7 +136,7 @@ result = pro.analyze("今天被老板画饼了，感觉很失落")
 
 print(f"主要情感: {result.emotion.primary}")  # disappointment
 print(f"共情回复: {result.human_response.text}")  # "老板画饼确实让人很失落..."
-print(f"引擎版本: {result.engine}")  # llm-v1.15
+print(f"引擎版本: {result.engine}")  # llm-v1.17
 ```
 
 ### Web API
@@ -322,6 +322,7 @@ print('所有测试通过!')
 
 | 版本 | 说明 |
 |------|------|
+| **v1.17** | 代码质量优化 - 修复 empathy_depth bug、O(n²)性能优化、RLock 防死锁、异常处理规范化、移除死代码 |
 | **v1.16** | OpenAI 客户端改用官方 SDK、清理仓库移除二进制文件、依赖声明规范化 |
 | **v1.15** | 大规模Bug修复与系统优化 - 进化系统生效、内存安全、版本统一、响应引擎增强 |
 | **v1.14** | LLM 驱动升级 - 语义情感检测、动态响应生成、自动降级 |
