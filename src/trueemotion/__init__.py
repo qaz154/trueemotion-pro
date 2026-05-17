@@ -9,7 +9,7 @@ v1.16 新特性:
 - 版本统一管理
 """
 
-__version__ = "1.16"
+__version__ = "1.17"
 __author__ = "TrueEmotion Team"
 
 from trueemotion.api.routes import TrueEmotionPro, create_analyzer
