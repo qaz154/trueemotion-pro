@@ -40,10 +40,10 @@
 
 ```
 src/trueemotion/
+├── _version.py                 # 版本号唯一源
 ├── api/                        # 统一API层
-│   ├── routes.py              # TrueEmotionPro 主类
-│   ├── server.py              # FastAPI Web服务
-│   ├── schemas.py             # 数据模型
+│   ├── facade.py              # TrueEmotionPro 门面类
+│   ├── server.py              # FastAPI Web服务 (async + rate limiting)
 │   └── templates/
 │       └── demo.html          # Web演示页面
 ├── core/                       # 核心领域
@@ -57,17 +57,21 @@ src/trueemotion/
 │   ├── emotions/
 │   │   ├── plutchik24.py     # 40+情感定义及VAD坐标
 │   │   ├── detector.py       # 规则引擎检测器
-│   │   ├── irony.py         # 反讽检测器
-│   │   └── personality.py    # 性格与关系系统
+│   │   ├── irony.py          # 反讽检测器
+│   │   ├── personality.py    # 性格与关系系统
+│   │   └── i18n.py           # 中文情感名映射
 │   ├── analysis/
-│   │   ├── analyzer.py       # 分析器门面 (双引擎支持)
+│   │   ├── analyzer.py       # 分析器编排器 (~30行)
+│   │   ├── pipeline.py       # 检测管道 (detect→irony→context)
+│   │   ├── response_builder.py # 响应构建器
 │   │   ├── context.py        # 上下文分析器
-│   │   └── output.py        # 数据结构
+│   │   └── output.py         # 数据结构
 │   └── response/
-│       ├── engine.py          # 规则引擎共情响应
+│       ├── engine.py          # 规则引擎共情响应 (~314行)
+│       ├── templates.py       # 响应模板数据 (570行)
 │       └── proactive.py       # 主动共情引擎
 ├── memory/                     # 记忆层 (Repository模式)
-│   └── repository.py          # 智能记忆系统
+│   └── repository.py          # 智能记忆系统 (原子写入+RLock)
 └── learning/                  # 进化层
     └── evolution.py           # 多维度进化管理
 ```
@@ -322,13 +326,19 @@ print('所有测试通过!')
 
 | 版本 | 说明 |
 |------|------|
-| **v1.24** | 最终代码质量清理 - 版本统一、Python 3.9 兼容性修复、死代码标注 |
-| **v1.17** | 代码质量优化 - 修复 empathy_depth bug、O(n²)性能优化、RLock 防死锁、异常处理规范化、移除死代码 |
+| **v1.24** | 代码质量收尾 - 清理 30+ 陈旧版本字符串、Python 3.9 兼容修复、死代码标注 |
+| **v1.23** | API 加固 - CORS 环境变量化、内存速率限制中间件、routes.py 重命名为 facade.py |
+| **v1.22** | 测试覆盖扩展 - 26→78 测试，新增 repository/context/irony/server/evolution 测试 |
+| **v1.21** | 异步 I/O - 所有 FastAPI 端点改用 asyncio.to_thread，不再阻塞事件循环 |
+| **v1.20** | 分析器分解 - analyze() 从 140 行缩减为 30 行编排器，新建 pipeline.py + response_builder.py |
+| **v1.19** | 模板数据外置 - engine.py 从 884 行降至 314 行，新建 templates.py + i18n.py |
+| **v1.18** | 基础修复 - 修复循环导入、双 MemoryRepository 竞争、emotional_state 崩溃、Python 3.9 兼容 |
+| **v1.17** | 代码质量优化 - 修复 empathy_depth bug、O(n²)性能优化、RLock 防死锁、异常处理规范化 |
 | **v1.16** | OpenAI 客户端改用官方 SDK、清理仓库移除二进制文件、依赖声明规范化 |
-| **v1.15** | 大规模Bug修复与系统优化 - 进化系统生效、内存安全、版本统一、响应引擎增强 |
+| **v1.15** | 大规模 Bug 修复与系统优化 - 进化系统生效、内存安全、响应引擎增强 |
 | **v1.14** | LLM 驱动升级 - 语义情感检测、动态响应生成、自动降级 |
 | **v1.13** | 全面升级 - 智能记忆系统、增强复合情感、多维度进化 |
-| **v1.12** | FastAPI Web API与Web演示页面 |
+| **v1.12** | FastAPI Web API 与 Web 演示页面 |
 | **v1.11** | 人性化情感系统 - 复合情感、连续强度、性格建模 |
 
 ## License
