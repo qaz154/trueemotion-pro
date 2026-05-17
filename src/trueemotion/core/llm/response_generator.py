@@ -5,6 +5,7 @@ LLM 响应生成器 v1.15
 """
 
 import logging
+import random
 from typing import Optional, Dict, Any, List
 
 from trueemotion.core.llm.base import BaseLLMClient, LLMError
@@ -174,8 +175,6 @@ class LLMResponseGenerator:
             prob = 0.7
         else:
             prob = 0.3
-
-        import random
 
         if random.random() > prob:
             return None

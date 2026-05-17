@@ -10,6 +10,7 @@ v1.15 增强:
 """
 
 import json
+import logging
 import os
 import re
 import tempfile
@@ -18,6 +19,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
+
+__all__ = ["MemoryRepository", "LearnedPattern", "UserProfile"]
 
 
 # 停用词（情感分析时不考虑）
@@ -97,8 +100,8 @@ class MemoryRepository:
         self._users_dir = self._base_path / "users"
         self._patterns_dir = self._base_path / "patterns"
         self._global_patterns_dir = self._base_path / "global_patterns"
-        self._locks: Dict[str, threading.Lock] = {}
-        self._locks_lock = threading.Lock()
+        self._locks: Dict[str, threading.RLock] = {}
+        self._locks_lock = threading.RLock()
         self._ensure_dirs()
 
     def _ensure_dirs(self) -> None:
@@ -107,11 +110,11 @@ class MemoryRepository:
         self._patterns_dir.mkdir(parents=True, exist_ok=True)
         self._global_patterns_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_lock(self, path: str) -> threading.Lock:
+    def _get_lock(self, path: str) -> threading.RLock:
         """获取文件锁"""
         with self._locks_lock:
             if path not in self._locks:
-                self._locks[path] = threading.Lock()
+                self._locks[path] = threading.RLock()
             return self._locks[path]
 
     def _atomic_write(self, path: Path, data: str) -> None:
@@ -524,8 +527,7 @@ class MemoryRepository:
                     data = json.load(f)
                 return [LearnedPattern(**p) for p in data]
             except (json.JSONDecodeError, TypeError) as e:
-                import logging
-                logging.warning(f"Failed to load patterns for {user_id}: {e}")
+                logging.warning("Failed to load patterns for %s: %s", user_id, e)
         return []
 
     def _save_patterns(self, user_id: str, patterns: list[LearnedPattern]) -> None:

@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Tuple
 from datetime import datetime
 from collections import deque
+import random
+
+__all__ = ["ConversationContext", "ContextualAnalyzer", "EmotionTrend", "Utterance"]
 
 
 @dataclass
@@ -241,7 +244,6 @@ class ContextualAnalyzer:
             "joy": ["还在回味那件事吗？", "太棒了，详细讲讲！"],
             "anxiety": ["还在担心吗？", "能说说具体是什么情况吗？"],
         }
-        import random
         questions = deepeners.get(emotion, ["后来呢？", "然后呢？"])
         return random.choice(questions)
 

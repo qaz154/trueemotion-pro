@@ -5,7 +5,9 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Tuple
+from typing import Any, Optional, List, Dict, Tuple
+
+__all__ = ["EmotionOutput", "HumanResponse", "AnalysisResult"]
 
 
 @dataclass(frozen=True)
@@ -49,20 +51,6 @@ class HumanResponse:
 
 
 @dataclass(frozen=True)
-class UserProfile:
-    """用户画像"""
-    user_id: str
-    total_interactions: int = 0
-    dominant_emotion: Optional[str] = None
-    relationship_level: float = 0.0
-    learned_patterns: int = 0
-    last_emotion: Optional[str] = None
-    emotional_history: List[str] = field(default_factory=list)
-    emotional_state: str = "平稳"  # 新增：当前情绪状态
-    interaction_style: str = "正常"  # 新增：互动风格
-
-
-@dataclass(frozen=True)
 class AnalysisResult:
     """
     完整分析结果 v1.15
@@ -76,7 +64,7 @@ class AnalysisResult:
     engine: str
     emotion: EmotionOutput
     human_response: HumanResponse
-    user_profile: UserProfile
+    user_profile: Any
     context_used: bool = False
     emotion_mix: str = ""  # 新增：如"以悲伤为主，伴有轻微愤怒"
     explanation: Optional[Dict] = None  # 新增：检测解释

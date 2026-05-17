@@ -13,29 +13,10 @@ __version__ = "1.16"
 __author__ = "TrueEmotion Team"
 
 from trueemotion.api.routes import TrueEmotionPro, create_analyzer
-from trueemotion.api.schemas import (
-    AnalyzeRequest,
-    EmotionResult,
-    EmotionData,
-    ResponseData,
-    ProfileData,
-    EvolutionResult,
-    SystemStats,
-)
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 
 __all__ = [
-    # Main API
     "TrueEmotionPro",
     "create_analyzer",
-    # Schemas
-    "AnalyzeRequest",
-    "EmotionResult",
-    "EmotionData",
-    "ResponseData",
-    "ProfileData",
-    "EvolutionResult",
-    "SystemStats",
-    # Core
     "HumanEmotionDetector",
 ]

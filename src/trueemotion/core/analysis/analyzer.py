@@ -13,6 +13,7 @@ v1.15 新增:
 
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
+import logging
 
 from trueemotion import __version__
 
@@ -27,11 +28,10 @@ from trueemotion.core.analysis.context import ContextualAnalyzer, ConversationCo
 from trueemotion.core.analysis.output import (
     EmotionOutput,
     HumanResponse,
-    UserProfile,
     AnalysisResult,
 )
 from trueemotion.core.response.engine import HumanEmpathyEngine
-from trueemotion.memory.repository import MemoryRepository
+from trueemotion.memory.repository import MemoryRepository, UserProfile
 
 # LLM 组件（可选）
 try:
@@ -42,6 +42,7 @@ try:
         LLMResponseGenerator,
         FallbackManager,
     )
+    from trueemotion.core.llm.base import LLMError
     LLM_AVAILABLE = True
 except ImportError:
     LLM_AVAILABLE = False
@@ -50,6 +51,7 @@ except ImportError:
     LLMEmotionDetector = None
     LLMResponseGenerator = None
     FallbackManager = None
+    LLMError = Exception
 
 
 @dataclass
@@ -171,7 +173,8 @@ class EmotionAnalyzer:
                 )
                 explanation = llm_result.get("explanation")
                 confidence = llm_result.get("confidence", primary_score)
-            except Exception:
+            except (LLMError, RuntimeError, KeyError, TypeError) as e:
+                logging.warning("LLM detailed result failed, using rule fallback: %s", e)
                 vad = EMOTION_VAD.get(primary_emotion, (0.0, 0.0, 0.0))
                 explanation = None
                 confidence = primary_score
@@ -221,8 +224,8 @@ class EmotionAnalyzer:
                 empathy_type=human_response.empathy_type,
                 intensity_level=human_response.intensity_level,
                 follow_up=follow_up_suggestion,
-                empathy_depth=human_response.empathy_depth,
-                tone=human_response.tone,
+                empathy_depth=getattr(human_response, 'empathy_depth', '适度共情'),
+                tone=getattr(human_response, 'tone', '温暖'),
             )
 
         # 8. 构建情感混合描述
@@ -275,7 +278,7 @@ class EmotionAnalyzer:
                 empathy_type=human_response.empathy_type,
                 intensity_level=human_response.intensity_level,
                 follow_up=human_response.follow_up,
-                empathy_depth=getattr(human_response, 'tone', '温暖'),
+                empathy_depth=getattr(human_response, 'empathy_depth', '适度共情'),
                 tone=getattr(human_response, 'tone', '温暖'),
             ),
             user_profile=user_profile,
@@ -297,8 +300,7 @@ class EmotionAnalyzer:
             # 尝试使用 LLM 检测
             return self._llm_detector.detect(text)
         except Exception as e:
-            import logging
-            logging.warning(f"LLM detection failed, falling back to rules: {e}")
+            logging.warning("LLM detection failed, falling back to rules: %s", e)
             if self._fallback_manager:
                 self._fallback_manager.record_failure(e)
             return self._rule_detector.detect(text)
@@ -340,8 +342,7 @@ class EmotionAnalyzer:
                 conversation_history=history,
             )
         except Exception as e:
-            import logging
-            logging.warning(f"LLM response generation failed, falling back to rules: {e}")
+            logging.warning("LLM response generation failed, falling back to rules: %s", e)
             if self._fallback_manager:
                 self._fallback_manager.record_failure(e)
             return self._rule_empathy.generate(

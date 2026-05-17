@@ -204,7 +204,7 @@ class OpenAIClient(BaseLLMClient):
 
     def is_available(self) -> bool:
         """检查 LLM 服务是否可用"""
-        if self._last_check_time is not None and time.time() - self._last_check_time < 60:
+        if self._last_check_time is not None and time.time() - self._last_check_time <= 60:
             return self._last_check_result
         try:
             self.complete("hello", temperature=0.1, max_tokens=5)

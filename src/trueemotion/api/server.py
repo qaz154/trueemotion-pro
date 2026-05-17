@@ -53,8 +53,6 @@ def _serialize_result(result) -> dict:
             "tone": result.human_response.tone,
         },
     }
-    if result.compound_emotions:
-        response_dict["compound_emotions"] = result.compound_emotions
     if result.user_profile:
         response_dict["user_profile"] = {
             "user_id": result.user_profile.user_id,
@@ -177,6 +175,8 @@ async def root():
 async def demo_page():
     """Web演示页面"""
     template_path = Path(__file__).parent / "templates" / "demo.html"
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Demo page not available")
     return template_path.read_text(encoding="utf-8")
 
 

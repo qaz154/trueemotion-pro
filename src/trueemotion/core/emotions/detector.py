@@ -21,6 +21,8 @@ from trueemotion.core.emotions.plutchik24 import (
     get_intensity_label,
 )
 
+__all__ = ["HumanEmotionDetector", "EmotionMatch", "DetectionContext"]
+
 
 @dataclass
 class EmotionMatch:
@@ -347,26 +349,30 @@ class HumanEmotionDetector:
         elif context.sentence_length > 50:
             score *= 0.9
 
-        # 6. 强化词（分别处理增强和减弱，取最后匹配的）
-        boosters = []
-        diminishers = []
+        # 6. 强化词（分别处理增强和减弱，取最后出现的）
+        last_booster = None
+        last_booster_pos = -1
+        last_diminisher = None
+        last_diminisher_pos = -1
         for word, multiplier in self.INTENSIFIERS.items():
-            if word in text:
-                if multiplier >= 1.0:
-                    boosters.append(multiplier)
-                else:
-                    diminishers.append(multiplier)
-        if boosters and diminishers:
-            # 两者都有时取最后出现的（中文语法中最近的修饰词优先）
-            score *= diminishers[-1] if text.rfind(
-                next(w for w, m in self.INTENSIFIERS.items() if m == diminishers[-1])
-            ) > text.rfind(
-                next(w for w, m in self.INTENSIFIERS.items() if m == boosters[-1])
-            ) else boosters[-1]
-        elif boosters:
-            score *= max(boosters)
-        elif diminishers:
-            score *= min(diminishers)
+            pos = text.rfind(word)
+            if pos == -1:
+                continue
+            if multiplier >= 1.0:
+                if pos > last_booster_pos:
+                    last_booster = multiplier
+                    last_booster_pos = pos
+            else:
+                if pos > last_diminisher_pos:
+                    last_diminisher = multiplier
+                    last_diminisher_pos = pos
+
+        if last_booster is not None and last_diminisher is not None:
+            score *= last_diminisher if last_diminisher_pos > last_booster_pos else last_booster
+        elif last_booster is not None:
+            score *= last_booster
+        elif last_diminisher is not None:
+            score *= last_diminisher
 
         # 7. 语气词
         for particle, multiplier in self.PARTICLES.items():
