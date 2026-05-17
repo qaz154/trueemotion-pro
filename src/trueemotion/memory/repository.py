@@ -70,9 +70,10 @@ class UserProfile:
     relationship_level: float = 0.0
     learned_patterns: int = 0
     last_emotion: Optional[str] = None
-    emotional_history: list[str] = field(default_factory=list)
-    preferred_tone: str = "温暖"  # 用户偏好语气
-    interaction_style: str = "normal"  # 互动风格
+    emotional_history: List[str] = field(default_factory=list)
+    preferred_tone: str = "温暖"
+    interaction_style: str = "normal"
+    emotional_state: str = "平稳"
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     last_seen: Optional[str] = None
@@ -517,7 +518,7 @@ class MemoryRepository:
         )
         return similar[:5]
 
-    def _load_patterns(self, user_id: str) -> list[LearnedPattern]:
+    def _load_patterns(self, user_id: str) -> List[LearnedPattern]:
         """加载用户模式"""
         pattern_file = self._get_pattern_file(user_id)
 
@@ -530,7 +531,7 @@ class MemoryRepository:
                 logging.warning("Failed to load patterns for %s: %s", user_id, e)
         return []
 
-    def _save_patterns(self, user_id: str, patterns: list[LearnedPattern]) -> None:
+    def _save_patterns(self, user_id: str, patterns: List[LearnedPattern]) -> None:
         """保存用户模式"""
         pattern_file = self._get_pattern_file(user_id)
         lock = self._get_lock(str(pattern_file))
@@ -545,7 +546,7 @@ class MemoryRepository:
         self,
         user_id: str,
         emotion: str,
-    ) -> list[LearnedPattern]:
+    ) -> List[LearnedPattern]:
         """
         获取特定情感的模式
 
@@ -559,14 +560,14 @@ class MemoryRepository:
         patterns = self._load_patterns(user_id)
         return [p for p in patterns if p.emotion == emotion]
 
-    def get_all_patterns(self) -> dict[str, list[LearnedPattern]]:
+    def get_all_patterns(self) -> Dict[str, List[LearnedPattern]]:
         """
         获取所有用户的所有模式
 
         Returns:
-            dict[str, list[LearnedPattern]]: 用户ID到模式列表的映射
+            Dict[str, List[LearnedPattern]]: 用户ID到模式列表的映射
         """
-        all_patterns: dict[str, list[LearnedPattern]] = {}
+        all_patterns: Dict[str, List[LearnedPattern]] = {}
 
         for pattern_file in self._patterns_dir.glob("*_patterns.json"):
             user_id = pattern_file.stem.replace("_patterns", "")
@@ -624,8 +625,9 @@ class MemoryRepository:
     def save_evolved_rules(self, rules: List[Dict]) -> None:
         """保存进化规则"""
         rules_file = self._base_path / "evolved_rules.json"
-        with open(rules_file, "w", encoding="utf-8") as f:
-            json.dump(rules, f, ensure_ascii=False, indent=2)
+        lock = self._get_lock(str(rules_file))
+        with lock:
+            self._atomic_write(rules_file, json.dumps(rules, ensure_ascii=False, indent=2))
 
     def load_evolved_rules(self) -> List[Dict]:
         """加载进化规则"""

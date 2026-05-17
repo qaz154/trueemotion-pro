@@ -10,9 +10,13 @@ v1.15 增强:
 """
 
 import json
+import os
+import tempfile
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 from datetime import datetime
+from pathlib import Path
+from trueemotion._version import __version__
 from trueemotion.memory.repository import MemoryRepository, LearnedPattern
 
 
@@ -20,7 +24,7 @@ from trueemotion.memory.repository import MemoryRepository, LearnedPattern
 class EvolvedRule:
     """进化后的规则"""
     emotion: str
-    keywords: list[str]
+    keywords: List[str]
     source_patterns: int
     avg_feedback: float
     confidence: float
@@ -81,7 +85,7 @@ class EvolutionManager:
         total_patterns_analyzed = sum(len(p) for p in all_patterns.values())
 
         # 按情感分组
-        emotion_groups: dict[str, list[LearnedPattern]] = {}
+        emotion_groups: Dict[str, List[LearnedPattern]] = {}
         for user_id, patterns in all_patterns.items():
             for pattern in patterns:
                 if pattern.emotion not in emotion_groups:
@@ -89,7 +93,7 @@ class EvolutionManager:
                 emotion_groups[pattern.emotion].append(pattern)
 
         # 提取进化规则
-        evolved_rules: list[EvolvedRule] = []
+        evolved_rules: List[EvolvedRule] = []
         changes: List[str] = []
 
         for emotion, patterns in emotion_groups.items():
@@ -179,7 +183,7 @@ class EvolutionManager:
                 for r in evolved_rules
             ],
             "global_patterns_used": len(global_patterns),
-            "evolution_version": "1.15",
+            "evolution_version": __version__,
             "evolution_count": len(self._evolution_history),
         }
 
@@ -286,7 +290,7 @@ class EvolutionManager:
         return []
 
     def _save_history(self) -> None:
-        """保存进化历史"""
+        """保存进化历史（原子写入）"""
         history_file = self._memory._base_path / "evolution_history.json"
         data = [
             {
@@ -298,8 +302,16 @@ class EvolutionManager:
             }
             for h in self._evolution_history
         ]
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        content = json.dumps(data, ensure_ascii=False, indent=2)
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=history_file.parent, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.replace(tmp_path, str(history_file))
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def get_evolution_history(self, limit: int = 10) -> List[dict]:
         """获取进化历史"""

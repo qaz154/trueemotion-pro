@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import logging
 
-from trueemotion import __version__
+from trueemotion._version import __version__
 
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 from trueemotion.core.emotions.plutchik24 import (
@@ -88,19 +88,9 @@ class EmotionAnalyzer:
         empathy_engine: Optional[HumanEmpathyEngine] = None,
         llm_client: Optional[BaseLLMClient] = None,
         enable_llm: bool = True,
+        memory_repo: Optional[MemoryRepository] = None,
     ):
-        """
-        初始化情感分析器
-
-        Args:
-            memory_path: 记忆存储路径
-            detector: 规则引擎检测器（LLM 不可用时使用）
-            empathy_engine: 规则引擎响应生成器（LLM 不可用时使用）
-            llm_client: LLM 客户端（可选，启用 LLM 功能）
-            enable_llm: 是否启用 LLM（当 llm_client 提供时生效）
-        """
-        # 记忆仓库（需要先创建以加载进化规则）
-        self._memory = MemoryRepository(memory_path)
+        self._memory = memory_repo or MemoryRepository(memory_path)
         evolved_rules = self._memory.load_evolved_rules()
 
         # 规则引擎组件

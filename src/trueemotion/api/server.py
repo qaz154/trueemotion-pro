@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from trueemotion import TrueEmotionPro
-from trueemotion import __version__
+from trueemotion._version import __version__
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ TrueEmotion Pro v1.16 API
 import os
 from typing import Optional, List
 
-from trueemotion import __version__
+from trueemotion._version import __version__
 from trueemotion.core.analysis.analyzer import EmotionAnalyzer, AnalyzeOptions
 from trueemotion.core.analysis.output import AnalysisResult
 from trueemotion.learning.evolution import EvolutionManager
@@ -79,6 +79,7 @@ class TrueEmotionPro:
             empathy_engine=None,
             llm_client=llm_client,
             enable_llm=enable_llm and llm_client is not None,
+            memory_repo=self._memory,
         )
         self._evolution = EvolutionManager(self._memory)
         self._auto_learn = auto_learn
