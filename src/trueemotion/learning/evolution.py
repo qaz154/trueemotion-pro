@@ -1,12 +1,6 @@
 """
-进化管理器 v1.15
+进化管理器
 从学习到的模式中提取新规则，反哺检测器
-
-v1.15 增强:
-- 更智能的关键词提取
-- 多维度置信度计算
-- 全局模式融合
-- 进化历史追踪
 """
 
 import json
@@ -44,7 +38,7 @@ class EvolutionHistory:
 
 class EvolutionManager:
     """
-    进化管理器 v1.15
+    进化管理器
 
     分析学习到的模式，提取高反馈的模式作为新规则
     特性:
@@ -70,7 +64,7 @@ class EvolutionManager:
 
     def evolve(self) -> dict:
         """
-        执行进化 v1.15 增强版
+        执行进化
 
         分析所有用户的学习模式，提取高反馈的模式作为新规则
         融合全局模式库中的优质模式
@@ -242,7 +236,7 @@ class EvolutionManager:
         return confidence
 
     def get_evolution_status(self) -> dict:
-        """获取进化状态 v1.15"""
+        """获取进化状态"""
         all_patterns = self._memory.get_all_patterns()
 
         high_quality = 0

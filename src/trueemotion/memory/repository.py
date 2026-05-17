@@ -1,12 +1,6 @@
 """
-记忆仓库 v1.15
+记忆仓库
 使用Repository模式管理用户记忆和学习模式
-
-v1.15 增强:
-- 智能关键词提取
-- 记忆强化衰减机制
-- 语义相似度匹配
-- 跨用户模式共享
 """
 
 import json
@@ -81,7 +75,7 @@ class UserProfile:
 
 class MemoryRepository:
     """
-    记忆仓库 v1.15
+    记忆仓库
 
     使用JSON文件存储，支持用户画像和学习模式管理
     特性:
@@ -269,7 +263,7 @@ class MemoryRepository:
         context: Optional[str] = None,
     ) -> LearnedPattern:
         """
-        学习新模式 v1.15 增强版
+        学习新模式
 
         特性:
         - 自动关键词提取
@@ -578,7 +572,7 @@ class MemoryRepository:
         return all_patterns
 
     def get_stats(self) -> dict:
-        """获取系统统计信息 v1.15 增强版"""
+        """获取系统统计信息"""
         users = list(self._users_dir.glob("*.json"))
         pattern_files = list(self._patterns_dir.glob("*_patterns.json"))
         global_files = list(self._global_patterns_dir.glob("*_global.json"))

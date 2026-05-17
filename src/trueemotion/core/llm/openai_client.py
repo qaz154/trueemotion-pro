@@ -1,11 +1,7 @@
 """
-OpenAI LLM 客户端 v1.16
+OpenAI LLM 客户端
 =======================
 基于 OpenAI 官方 SDK 的 LLM 客户端实现
-
-v1.16 变更:
-- 使用 openai SDK 替代 urllib.request（自动重试、连接池、更好的错误处理）
-- 移除手动重试逻辑（SDK 内置）
 """
 
 import json
@@ -23,7 +19,7 @@ from trueemotion.core.llm.prompts import (
 
 class OpenAIClient(BaseLLMClient):
     """
-    OpenAI API 客户端 v1.16
+    OpenAI API 客户端
 
     使用 openai 官方 SDK，支持 OpenAI 兼容的 API（如 Azure OpenAI、自建代理等）
     """

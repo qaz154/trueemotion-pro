@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.16 API
+TrueEmotion Pro API
 人性化情感AI系统
 """
 
@@ -22,7 +22,7 @@ except ImportError:
 
 class TrueEmotionPro:
     """
-    TrueEmotion Pro v1.15 主类
+    TrueEmotion Pro 主类
 
     使用方法:
         pro = TrueEmotionPro()
@@ -30,7 +30,7 @@ class TrueEmotionPro:
         print(result.emotion.primary)  # joy
         print(result.human_response.text)  # "太为你高兴了！说说怎么回事！"
 
-    v1.15 新增:
+    LLM 模式:
         pro = TrueEmotionPro(llm_provider="openai", api_key="sk-...")  # 启用 LLM
         result = pro.analyze("今天被老板画饼了...")  # LLM 理解深层语义
     """

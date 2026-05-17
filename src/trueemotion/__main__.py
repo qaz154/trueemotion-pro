@@ -1,5 +1,5 @@
 """
-TrueEmotion Pro v1.15 主入口
+TrueEmotion Pro 主入口
 ===========================
 人性化情感AI系统 - 让AI拥有像人类一样丰富的情感
 """
@@ -7,14 +7,15 @@ TrueEmotion Pro v1.15 主入口
 import argparse
 
 from trueemotion import TrueEmotionPro
+from trueemotion._version import __version__
 
 
 def print_banner():
     """打印横幅"""
-    print("""
+    print(f"""
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║       TrueEmotion Pro v1.15 - 人性化情感AI系统                       ║
+║       TrueEmotion Pro v{__version__} - 人性化情感AI系统                       ║
 ║                                                                      ║
 ║       复合情感 | 连续强度 | 性格建模 | 关系感知 | 共情进化            ║
 ║                                                                      ║
@@ -178,7 +179,7 @@ def main():
     print_banner()
 
     parser = argparse.ArgumentParser(
-        description="TrueEmotion Pro v1.15 - 新一代中文情感AI系统",
+        description=f"TrueEmotion Pro v{__version__} - 新一代中文情感AI系统",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

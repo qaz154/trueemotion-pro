@@ -1,5 +1,5 @@
 """
-性格与关系系统 v1.15
+性格与关系系统
 ====================
 让AI拥有独特的性格和关系感知能力
 
@@ -162,6 +162,7 @@ class PersonalityEngine:
     def __init__(self, personality: Optional[Personality] = None):
         self.personality = personality or self.DEFAULT_PERSONALITY
 
+    # TODO: integrate or remove
     def get_response_modifier(
         self,
         emotion: str,

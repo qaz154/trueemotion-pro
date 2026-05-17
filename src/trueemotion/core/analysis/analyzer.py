@@ -1,18 +1,7 @@
 """
-情感分析器门面 v1.18
+情感分析器门面
 ====================
 整合检测器、记忆系统、响应生成器
-
-v1.18 重构:
-- analyze() 拆分为 EmotionPipeline + ResponseBuilder
-- _update_memory 使用 dataclasses.replace 避免直接变更
-
-v1.15 新增:
-- LLM 驱动的语义情感检测
-- LLM 驱动的动态响应生成
-- 降级机制（LLM 不可用时自动切换到规则引擎）
-- 反讽检测
-- 上下文理解
 """
 
 import dataclasses
@@ -69,14 +58,12 @@ class AnalyzeOptions:
 
 class EmotionAnalyzer:
     """
-    情感分析器门面 v1.18
+    情感分析器门面
 
-    v1.18 重构:
+    功能:
     - analyze() 精简为 ~30 行编排器
     - EmotionPipeline 负责检测 / VAD / 反讽 / 上下文
     - ResponseBuilder 负责共情响应 + 追问
-
-    v1.15 特性:
     - 人性化情感检测（连续强度、复合情感）
     - 更细腻的共情响应
     - 主动共情

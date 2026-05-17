@@ -1,5 +1,5 @@
 """
-Response builder v1.18
+Response builder
 ======================
 Steps 6-7 of the analysis flow:
   6. Generate empathy response (LLM or rule engine)

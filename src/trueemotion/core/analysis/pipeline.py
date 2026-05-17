@@ -1,5 +1,5 @@
 """
-Emotion analysis pipeline v1.18
+Emotion analysis pipeline
 ================================
 Steps 1-5 of the analysis flow:
   1. Emotion detection (LLM or rule engine)

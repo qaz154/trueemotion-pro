@@ -1,13 +1,7 @@
 """
-TrueEmotion Pro v1.15 FastAPI Server
+TrueEmotion Pro FastAPI Server
 ====================================
 人性化的情感AI Web服务
-
-v1.15 新特性:
-- 修复所有已知严重Bug
-- 进化系统真正生效
-- 内存系统线程安全与原子写入
-- 响应引擎优化
 """
 
 import asyncio
@@ -17,7 +11,7 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +31,7 @@ class RateLimitMiddleware:
         self.app = app
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._buckets: dict[str, list[float]] = defaultdict(list)
+        self._buckets: Dict[str, List[float]] = defaultdict(list)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
