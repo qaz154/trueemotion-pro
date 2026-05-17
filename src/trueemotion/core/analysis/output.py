@@ -5,7 +5,9 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple
+
+from trueemotion.memory.repository import UserProfile
 
 __all__ = ["EmotionOutput", "HumanResponse", "AnalysisResult"]
 
@@ -64,7 +66,7 @@ class AnalysisResult:
     engine: str
     emotion: EmotionOutput
     human_response: HumanResponse
-    user_profile: Any
+    user_profile: UserProfile
     context_used: bool = False
     emotion_mix: str = ""  # 新增：如"以悲伤为主，伴有轻微愤怒"
     explanation: Optional[Dict] = None  # 新增：检测解释
