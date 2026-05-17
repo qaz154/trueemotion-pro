@@ -7,7 +7,7 @@ from trueemotion._version import __version__
 
 __author__ = "TrueEmotion Team"
 
-from trueemotion.api.routes import TrueEmotionPro, create_analyzer
+from trueemotion.api.facade import TrueEmotionPro, create_analyzer
 from trueemotion.core.emotions.detector import HumanEmotionDetector
 
 __all__ = [

@@ -10,7 +10,11 @@ v1.15 新特性:
 - 响应引擎优化
 """
 
+import asyncio
 import logging
+import os
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional, List
@@ -24,6 +28,44 @@ from trueemotion import TrueEmotionPro
 from trueemotion._version import __version__
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimitMiddleware:
+    """Simple in-memory token bucket rate limiter per client IP."""
+
+    def __init__(self, app, max_requests: int = 60, window_seconds: int = 60):
+        self.app = app
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._buckets: dict[str, list[float]] = defaultdict(list)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+
+        now = time.monotonic()
+        cutoff = now - self.window_seconds
+
+        # Prune expired timestamps
+        timestamps = self._buckets[client_ip]
+        self._buckets[client_ip] = [
+            ts for ts in timestamps if ts > cutoff
+        ]
+
+        if len(self._buckets[client_ip]) >= self.max_requests:
+            response = JSONResponse(
+                {"detail": "Rate limit exceeded"},
+                status_code=429,
+            )
+            await response(scope, receive, send)
+            return
+
+        self._buckets[client_ip].append(now)
+        await self.app(scope, receive, send)
 
 
 def _serialize_result(result) -> dict:
@@ -141,13 +183,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS配置 - 生产环境应限制来源
-CORS_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-]
+# CORS配置 - 通过环境变量配置，生产环境应限制来源
+CORS_ORIGINS = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000"
+).split(",")
 
 # CORS middleware
 app.add_middleware(
@@ -157,6 +197,11 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware (added after CORS so it executes before CORS in the
+# middleware stack — Starlette processes middleware in reverse registration order)
+RATE_LIMIT = int(os.environ.get("RATE_LIMIT", "60"))
+app.add_middleware(RateLimitMiddleware, max_requests=RATE_LIMIT)
 
 
 @app.get("/", tags=["Info"])
@@ -207,7 +252,8 @@ async def analyze_text(body: AnalyzeRequest, request: Request):
     pro = _get_pro(request)
 
     try:
-        result = pro.analyze(
+        result = await asyncio.to_thread(
+            pro.analyze,
             text=body.text,
             context=body.context,
             learn=body.learn,
@@ -239,7 +285,8 @@ async def analyze_batch_text(body: BatchAnalyzeRequest, request: Request):
     pro = _get_pro(request)
 
     try:
-        results = pro.analyze_batch(
+        results = await asyncio.to_thread(
+            pro.analyze_batch,
             texts=body.texts,
             user_id=body.user_id,
         )
@@ -259,7 +306,7 @@ async def get_user_profile(user_id: str, request: Request):
     pro = _get_pro(request)
 
     try:
-        profile = pro.get_user_profile(user_id)
+        profile = await asyncio.to_thread(pro.get_user_profile, user_id)
         return JSONResponse({"success": True, "data": profile})
     except Exception as e:
         logger.exception("Error in /profile/%s endpoint", user_id)
@@ -272,7 +319,7 @@ async def get_memory_status(request: Request):
     pro = _get_pro(request)
 
     try:
-        status = pro.get_memory_status()
+        status = await asyncio.to_thread(pro.get_memory_status)
         return JSONResponse({"success": True, "data": status})
     except Exception as e:
         logger.exception("Error in /memory/status endpoint")
@@ -285,7 +332,7 @@ async def reset_user_memory(body: ResetRequest, request: Request):
     pro = _get_pro(request)
 
     try:
-        pro.reset_user(body.user_id)
+        await asyncio.to_thread(pro.reset_user, body.user_id)
         return JSONResponse({
             "success": True,
             "message": f"用户 {body.user_id} 的记忆已重置",
@@ -301,7 +348,7 @@ async def trigger_evolution(request: Request):
     pro = _get_pro(request)
 
     try:
-        result = pro.evolve()
+        result = await asyncio.to_thread(pro.evolve)
         return JSONResponse({"success": True, "data": result})
     except Exception as e:
         logger.exception("Error in /evolve endpoint")
@@ -314,7 +361,7 @@ async def get_evolution_status(request: Request):
     pro = _get_pro(request)
 
     try:
-        status = pro.get_evolution_status()
+        status = await asyncio.to_thread(pro.get_evolution_status)
         return JSONResponse({"success": True, "data": status})
     except Exception as e:
         logger.exception("Error in /evolution/status endpoint")
@@ -327,7 +374,7 @@ async def get_system_stats(request: Request):
     pro = _get_pro(request)
 
     try:
-        stats = pro.get_stats()
+        stats = await asyncio.to_thread(pro.get_stats)
         return JSONResponse({"success": True, "data": stats})
     except Exception as e:
         logger.exception("Error in /stats endpoint")

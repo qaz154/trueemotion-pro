@@ -1,6 +1,6 @@
 """API module."""
 
-from trueemotion.api.routes import TrueEmotionPro, create_analyzer
+from trueemotion.api.facade import TrueEmotionPro, create_analyzer
 
 __all__ = [
     "TrueEmotionPro",
